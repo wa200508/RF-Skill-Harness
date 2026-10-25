@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rf-skill-harness"
+version = "0.1.0"
+description = "GNU Radio harness for coherent recorded RF I/Q and receiver metadata"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+dependencies = ["numpy>=1.24"]
+
+[project.scripts]
+rf-harness = "rf_skill_harness.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+rf_skill_harness = ["timeline.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,18 @@
+{
+  "source_repository": "wa200508/airsim-rf",
+  "source_revision": "8e21a9f89fb9245c06fb0a000af704b6acdda722",
+  "backend": "CPU / Sionna RT 2.2.0",
+  "noise_enabled": true,
+  "noise_power_offset_db": -25.0,
+  "retained_paths": {
+    "target_echoes": 3,
+    "terrain_echoes": 302
+  },
+  "samples": 40000,
+  "harness_received_sample_sha256": [
+    "024adefc1607ca2bb6e36b4e8e6d3e2087ebce5476ed42dd7829d224bec00ceb"
+  ],
+  "exact_samples_and_acquisition_timestamp_preserved": true,
+  "hardware_validation": false,
+  "flight_validation": false
+}

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RF acquisition timeline</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#deebf2;background:#111b28;color-scheme:dark}body{max-width:1250px;margin:32px auto;padding:0 20px}h1{font-size:25px;margin-bottom:8px}p,li{line-height:1.55;color:#b9cbd9}.card{background:#172537;border:1px solid #30465c;border-radius:12px;padding:20px;margin-top:18px}.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}button{font:inherit;background:#243c54;border:1px solid #476681;border-radius:6px;padding:8px 12px;cursor:pointer}button:hover{background:#315371}input{flex:1;min-width:180px}canvas{display:block;width:100%;height:290px;margin-top:14px}#clock,#details{font-family:ui-monospace,monospace;font-size:12px;overflow-wrap:anywhere}#zoom-note{min-height:24px}#kind{color:#6cd9c4}code{color:#d1e5f8}a{color:#91c4ff}.legend{display:flex;flex-wrap:wrap;gap:20px}.legend span:before{content:' ';display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:7px;background:var(--color)}
+</style>
+<h1>RF acquisition timeline</h1>
+<p><strong id="kind"></strong> · Constructed automatically from the recorded receiver metadata.</p>
+<div class="card">
+ <div class="controls">
+  <button id="fit">Fit capture</button><button id="first">First windows</button>
+  <button id="in">Zoom in</button><button id="out">Zoom out</button>
+  <button id="left">←</button><button id="right">→</button>
+  <input id="position" type="range" min="0" max="10000" value="0" aria-label="Timeline position">
+ </div>
+ <canvas id="timeline" aria-label="RF acquisition events: recorded receive windows and configured radar transmit and ADC gates"></canvas>
+ <div class="legend" id="legend"></div>
+ <p id="zoom-note"></p><p id="details">Move the pointer over the timeline to inspect acquisition time.</p>
+ <p id="clock"></p>
+</div>
+<div class="card"><h2>How to read this</h2><ul id="notes"></ul>
+ <p>This is the <strong>RF acquisition schedule</strong>. GNU Radio independently schedules DSP buffers under backpressure.
+ Playback speed and processor latency do not move these acquisition events. No scene truth or emitter activity is reconstructed.</p>
+ <p>Use <code>context.json</code> for the full receiver configuration and <code>schedule.json</code> for this compact timeline.
+ Configured events describe the nominal waveform timing; they are not a hardware TX-state log.</p>
+</div>
+<script id="schedule-data" type="application/json">__RF_SCHEDULE_JSON__</script>
+<script>
+'use strict';
+const data=JSON.parse(document.getElementById('schedule-data').textContent),$=id=>document.getElementById(id);
+const canvas=$('timeline'),ctx=canvas.getContext('2d');
+let left=0,span=data.total_ns,width=1000,height=290,plotLeft=260,plotRight=24,plotTop=55,rowHeight=55;
+const clockOrigin=BigInt(data.origin_timestamp_ns),minimum=Math.max(1,(data.radar?.pri_ns||data.window_runs[0].duration_ns)/40);
+$('kind').textContent=data.kind==='fmcw-radar'?'FMCW radar':'Receive / ESM collection';
+for(const lane of data.lanes){const e=document.createElement('span');e.textContent=lane.evidence==='recorded'?'Recorded acquisition windows':lane.label;e.style.setProperty('--color',lane.color);$('legend').appendChild(e);}
+for(const note of data.notes){const e=document.createElement('li');e.textContent=note;$('notes').appendChild(e);}
+function showWindow(start,size){span=Math.max(Math.min(minimum,data.total_ns),Math.min(size,data.total_ns));left=Math.max(0,Math.min(start,data.total_ns-span));paint();}
+function first(){showWindow(0,Math.min(data.total_ns,data.radar?data.radar.pri_ns*12:data.window_runs[0].duration_ns*6));}
+function x(n){return plotLeft+(n-left)/span*(width-plotLeft-plotRight);}
+function bar(start,end,row,color,label){const a=Math.max(plotLeft,x(start)),b=Math.min(width-plotRight,x(end));if(b<=a)return;const y=plotTop+row*rowHeight;ctx.fillStyle=color;ctx.fillRect(a,y,Math.max(1,b-a-1),23);if(b-a>54&&label){ctx.fillStyle='#0b1c28';ctx.fillText(label,a+5,y+16);}}
+function paint(){
+ const ratio=window.devicePixelRatio||1;width=canvas.clientWidth;plotLeft=Math.min(260,width*.38);height=plotTop+data.lanes.length*rowHeight+55;
+ canvas.style.height=height+'px';canvas.width=Math.round(width*ratio);canvas.height=Math.round(height*ratio);ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,width,height);ctx.font='12px system-ui';ctx.textBaseline='alphabetic';
+ const unit=span<20000?['ns',1]:span<20000000?['µs',1000]:span<20000000000?['ms',1e6]:['s',1e9];
+ for(let i=0;i<=5;i++){const n=left+span*i/5,px=x(n);ctx.strokeStyle='#30465c';ctx.beginPath();ctx.moveTo(px,34);ctx.lineTo(px,height-38);ctx.stroke();ctx.fillStyle='#c5d8e6';ctx.fillText((n/unit[1]).toFixed(span/unit[1]<10?2:1),px-10,22);}
+ ctx.fillStyle='#b9cbd9';ctx.fillText('Acquisition time since recording start ('+unit[0]+')',plotLeft,height-8);
+ data.lanes.forEach((lane,i)=>{ctx.fillStyle='#deebf2';ctx.fillText(lane.label,0,plotTop+i*rowHeight+16);});
+ let dense=false;
+ for(const run of data.window_runs){const firstIndex=Math.max(0,Math.floor((left-run.start_ns)/run.duration_ns)),last=Math.min(run.count,Math.ceil((left+span-run.start_ns)/run.duration_ns));if(last<=firstIndex)continue;
+  if(last-firstIndex>800){dense=true;bar(run.start_ns,run.start_ns+run.count*run.duration_ns,0,data.lanes[0].color,'Receive windows · aggregated');}
+  else for(let i=firstIndex;i<last;i++)bar(run.start_ns+i*run.duration_ns,run.start_ns+(i+1)*run.duration_ns,0,data.lanes[0].color,'RX window '+(run.first_window+i));
+ }
+ if(data.radar){const r=data.radar,firstChirp=Math.max(0,Math.floor(left/r.pri_ns)),last=Math.ceil((left+span)/r.pri_ns);
+  if(last-firstChirp>800){dense=true;bar(left,left+span,1,data.lanes[1].color,'Configured TX chirps · aggregated');bar(left,left+span,2,data.lanes[2].color,'Configured ADC gates · aggregated');}
+  else for(let i=firstChirp;i<last;i++){const n=i*r.pri_ns;bar(n,Math.min(data.total_ns,n+r.tx_duration_ns),1,data.lanes[1].color,'TX '+i);bar(n+r.rx_start_ns,Math.min(data.total_ns,n+r.rx_start_ns+r.rx_duration_ns),2,data.lanes[2].color,'ADC '+i);}
+ }
+ $('zoom-note').textContent=dense?'Repeated events are aggregated at this zoom. Zoom in to see individual windows/chirps.':'Individual acquisition events. TX and RX may overlap in FMCW.';
+ $('clock').textContent='Original acquisition clock: '+(clockOrigin+BigInt(Math.round(left)))+' to '+(clockOrigin+BigInt(Math.round(left+span)))+' ns · epoch not assumed UTC';
+ $('position').value=data.total_ns===span?'0':Math.round(left/(data.total_ns-span)*10000);
+}
+$('fit').onclick=()=>showWindow(0,data.total_ns);$('first').onclick=first;
+$('in').onclick=()=>showWindow(left+span/4,span/2);$('out').onclick=()=>showWindow(left-span/2,span*2);
+$('left').onclick=()=>showWindow(left-span/2,span);$('right').onclick=()=>showWindow(left+span/2,span);
+$('position').oninput=()=>showWindow(Number($('position').value)/10000*(data.total_ns-span),span);
+canvas.onwheel=e=>{e.preventDefault();const box=canvas.getBoundingClientRect(),fraction=Math.max(0,Math.min(1,(e.clientX-box.left-plotLeft)/(width-plotLeft-plotRight))),next=span*(e.deltaY>0?1.5:1/1.5);showWindow(left+fraction*(span-next),next);};
+canvas.addEventListener('wheel',()=>{},{passive:false});
+canvas.onmousemove=e=>{const box=canvas.getBoundingClientRect(),px=e.clientX-box.left;if(px<plotLeft||px>width-plotRight)return;const n=Math.max(0,Math.min(data.total_ns,Math.round(left+(px-plotLeft)/(width-plotLeft-plotRight)*span)));let text='T+ '+(n/1e6).toFixed(6)+' ms · exact clock '+(clockOrigin+BigInt(n))+' ns';
+ if(data.radar){const r=data.radar,phase=n%r.pri_ns;text+=' · chirp '+Math.floor(n/r.pri_ns)+' · configured TX '+(phase<r.tx_duration_ns?'ON':'OFF')+' · ADC '+(phase>=r.rx_start_ns&&phase<r.rx_start_ns+r.rx_duration_ns?'GATE':'GAP');}
+ $('details').textContent=text;};
+window.addEventListener('resize',paint);first();
+</script>
+</html>

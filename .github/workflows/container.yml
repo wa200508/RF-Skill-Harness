@@ -1,0 +1,57 @@
+name: Qualify GNU Radio RF skill harness
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rf-skill-harness-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build this repository's GNU Radio CPU runtime
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: rf-skill-harness:test
+          build-args: SOURCE_REVISION=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Native GNU Radio, Companion, receiver metadata and schedule tests
+        run: |
+          docker run --rm --network none -e QT_QPA_PLATFORM=offscreen \
+            --entrypoint timeout rf-skill-harness:test 180 \
+            python3 -m pytest /opt/rf-skill-harness/tests -q -p no:cacheprovider
+      - name: Host launcher and installed-wheel replay without source mounts
+        run: |
+          docker run --rm --network none --entrypoint python3 rf-skill-harness:test \
+            /opt/rf-skill-harness/scripts/qualify.py
+          bash scripts/run_harness.sh --image rf-skill-harness:test --no-pull \
+            demo --kind radar --output "$RUNNER_TEMP/harness-demo"
+          bash scripts/run_harness.sh --image rf-skill-harness:test --no-pull \
+            inspect "$RUNNER_TEMP/harness-demo" --verify
+          bash scripts/run_harness.sh --image rf-skill-harness:test --no-pull \
+            prepare "$RUNNER_TEMP/harness-demo" --output "$RUNNER_TEMP/harness-project"
+          bash scripts/run_harness.sh --image rf-skill-harness:test --no-pull \
+            run "$RUNNER_TEMP/harness-demo" \
+            --processor "$RUNNER_TEMP/harness-project/processor.py:process_window" \
+            --output "$RUNNER_TEMP/harness-results"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])
+          summary=json.loads((root/'harness-results/run.json').read_text())
+          assert summary['status']=='complete' and summary['windows']==6
+          assert (root/'harness-project/timeline.html').is_file()
+          PY
+      # Public releases are built from a pinned commit of this repository by
+      # airsim-rf/.github/workflows/rf-skill-harness.yml. Reusing its established
+      # public GHCR package avoids a separate private-by-default package.
