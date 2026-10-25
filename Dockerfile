@@ -3,14 +3,18 @@ FROM ubuntu:24.04 AS runtime
 ENV DEBIAN_FRONTEND=noninteractive PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 # Use distro GNU Radio and its matching Python. A build-only CA mount supports
 # managed HTTPS proxies without retaining a session certificate in the image.
+# Minimal Ubuntu needs its CA store bootstrapped from signed vendor repositories.
 RUN --mount=type=secret,id=proxy_ca,mode=0444 \
     set -eu; \
-    sed -i 's|http://archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g; s|http://security.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources; \
     if [ -f /run/secrets/proxy_ca ]; then export SSL_CERT_FILE=/run/secrets/proxy_ca; \
+      sed -i 's|http://archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g; s|http://security.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources; \
       apt-get -o Acquire::https::CaInfo="$SSL_CERT_FILE" update; \
       apt-get -o Acquire::https::CaInfo="$SSL_CERT_FILE" install -y --no-install-recommends \
         ca-certificates gnuradio python3-numpy python3-pip python3-pytest python3-yaml; \
-    else apt-get update; apt-get install -y --no-install-recommends \
+    else \
+      apt-get update; apt-get install -y --no-install-recommends ca-certificates; \
+      sed -i 's|http://archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g; s|http://security.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources; \
+      apt-get update; apt-get install -y --no-install-recommends \
       ca-certificates gnuradio python3-numpy python3-pip python3-pytest python3-yaml; fi; \
     rm -rf /var/lib/apt/lists/*
 ARG SOURCE_REVISION=development
