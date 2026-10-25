@@ -18,6 +18,7 @@ RUN --mount=type=secret,id=proxy_ca,mode=0444 \
       ca-certificates gnuradio python3-numpy python3-pip python3-pytest python3-yaml; fi; \
     rm -rf /var/lib/apt/lists/*
 ARG SOURCE_REVISION=development
+ENV HOME=/tmp XDG_CACHE_HOME=/tmp/.cache
 LABEL org.opencontainers.image.source="https://github.com/wa200508/RF-Skill-Harness" \
       org.opencontainers.image.revision="${SOURCE_REVISION}" \
       org.opencontainers.image.licenses="Apache-2.0"

@@ -41,7 +41,8 @@ def main():
                               check=True, capture_output=True, text=True)
     rootless = "rootless" in security.stdout.lower()
     uid = "0:0" if rootless else f"{os.getuid()}:{os.getgid()}"
-    options = ["docker", "run", "--rm", "--init", "--network", "none", "--user", uid]
+    options = ["docker", "run", "--rm", "--init", "--network", "none", "--user", uid,
+               "-e", "HOME=/tmp", "-e", "XDG_CACHE_HOME=/tmp/.cache"]
     arguments = [args.action]
     recording = None
     if hasattr(args, "recording"):

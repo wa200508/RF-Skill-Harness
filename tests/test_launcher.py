@@ -45,6 +45,7 @@ def test_launcher_preserves_host_paths_readonly_iq_and_correct_uid_mapping(tmp_p
     run = next(c for c in calls if c[0] == "run")
     assert run[run.index("--user") + 1] == ("0:0" if rootless else f"{os.getuid()}:{os.getgid()}")
     assert run[run.index("--network") + 1] == "none"
+    assert "HOME=/tmp" in run and "XDG_CACHE_HOME=/tmp/.cache" in run
     assert f"type=bind,src={capture},dst=/recording,readonly" in run
     assert f"type=bind,src={output},dst=/output" in run
     assert f"/developer/{processor.name}:process_window" in run
