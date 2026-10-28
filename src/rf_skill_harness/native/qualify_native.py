@@ -19,6 +19,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--bundle', type=Path, required=True)
     parser.add_argument('--build-dir', type=Path, required=True)
+    parser.add_argument('--executable', type=Path, help='Production binary to qualify; otherwise use build-dir/rf-skill')
     parser.add_argument('--expect-signal', action='store_true')
     parser.add_argument('--idle-seconds', type=float, default=6, help='Keep the optional position subscription silent beyond the transaction timeout')
     args = parser.parse_args()
@@ -63,7 +64,7 @@ def main():
                     if router.poll() is not None or time.monotonic() > deadline:
                         raise RuntimeError('OWP fixture failed: ' + (work / 'owp.log').read_text())
                     time.sleep(.02)
-                skill = subprocess.Popen([str(args.build_dir / 'rf-skill'), '--config', str(work / 'runtime.json')], stdout=skill_log, stderr=subprocess.STDOUT)
+                skill = subprocess.Popen([str(args.executable or (args.build_dir / 'rf-skill')), '--config', str(work / 'runtime.json')], stdout=skill_log, stderr=subprocess.STDOUT)
                 deadline = time.monotonic() + 15
                 while len(list((work / 'results').glob('*.json'))) < 2:
                     if skill.poll() is not None or time.monotonic() > deadline:

@@ -35,6 +35,32 @@ jobs:
           cache-to: type=gha,mode=max,scope=native-export
       - name: Run native factories, RX jobs, callbacks, coherent DSP and UCI/OWP offline
         run: docker run --rm --network none native-rf-skill:test --expect-signal
+      - name: Extract external native interface fixtures
+        run: |
+          mkdir -p "$RUNNER_TEMP/native-fixtures"
+          container=$(docker create native-rf-skill:test)
+          docker cp "$container:/build/build/libtest_mel.so" "$RUNNER_TEMP/native-fixtures/libtest_mel.so"
+          docker cp "$container:/build/build/owp_fixture" "$RUNNER_TEMP/native-fixtures/owp_fixture"
+          docker cp "$container:/build/native/qualify_native.py" "$RUNNER_TEMP/native-fixtures/qualify_native.py"
+          docker rm "$container"
+          chmod -R a+rX "$RUNNER_TEMP/native-fixtures"
+      - name: Build the exported production runtime
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ runner.temp }}/native-skill
+          target: runtime
+          load: true
+          tags: native-rf-skill:production
+          build-args: BUILD_NATIVE_FIXTURE=ON
+          cache-from: type=gha,scope=native-export
+          cache-to: type=gha,mode=max,scope=native-export
+      - name: Qualify the production binary and unprivileged production user offline
+        run: |
+          docker run --rm --network none --entrypoint python3 \
+            --mount "type=bind,src=$RUNNER_TEMP/native-fixtures,dst=/qualification,readonly" \
+            native-rf-skill:production /qualification/qualify_native.py \
+            --bundle /opt/skill --build-dir /qualification \
+            --executable /usr/local/bin/rf-skill --expect-signal
   qualify:
     runs-on: ubuntu-latest
     timeout-minutes: 25
