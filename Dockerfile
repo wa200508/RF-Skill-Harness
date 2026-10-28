@@ -34,7 +34,8 @@ RUN --mount=type=secret,id=proxy_ca,mode=0444 \
     && groupadd --gid 10001 rf && useradd --uid 10001 --gid rf --create-home rf
 COPY src/ src/
 # grcc uses the distro interpreter; both it and the lab venv must see this wheel.
-RUN /usr/bin/python3 -m pip install --no-deps --no-cache-dir --no-build-isolation --break-system-packages .
+RUN /usr/bin/python3 -m pip install --no-deps --no-cache-dir --no-build-isolation --break-system-packages . \
+    && chmod -R a+rX /opt/rf-skill-harness/src
 COPY --chmod=755 scripts/ scripts/
 COPY --chmod=755 tests/ tests/
 USER rf

@@ -1,0 +1,27 @@
+cmake_minimum_required(VERSION 3.25)
+project(exported_rf_skill LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+find_package(Boost REQUIRED COMPONENTS system)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+find_package(Python3 REQUIRED COMPONENTS Development.Embed)
+set(UPSTREAM ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rf-fm-demod)
+add_library(reference_runtime STATIC
+  ${UPSTREAM}/src/runtime.cpp ${UPSTREAM}/src/c2.cpp
+  ${UPSTREAM}/src/dsp.cpp ${UPSTREAM}/src/logging.cpp)
+target_include_directories(reference_runtime PUBLIC
+  ${UPSTREAM}/include vendor/rfmel/include vendor/mel/include
+  vendor/ams-math/include vendor/ams-vita/include)
+target_link_libraries(reference_runtime PUBLIC Boost::system nlohmann_json::nlohmann_json spdlog::spdlog ${CMAKE_DL_LIBS})
+add_executable(rf-skill host.cpp)
+target_link_libraries(rf-skill PRIVATE reference_runtime Python3::Python)
+install(TARGETS rf-skill RUNTIME DESTINATION bin)
+option(BUILD_NATIVE_FIXTURE "Build the header-compatible MEL integration fixture" OFF)
+if(BUILD_NATIVE_FIXTURE)
+  add_library(test_mel SHARED fixture.cpp)
+  target_link_libraries(test_mel PRIVATE reference_runtime)
+  add_executable(owp_fixture ${UPSTREAM}/scripts/owp_fixture.cpp)
+  target_include_directories(owp_fixture PRIVATE ${UPSTREAM}/scripts)
+  target_link_libraries(owp_fixture PRIVATE reference_runtime)
+endif()

@@ -11,6 +11,15 @@ from .archive import Archive
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
+    init = commands.add_parser('init', help='Create an RF skill project independently of any capture')
+    init.add_argument('--output', type=Path, required=True)
+    init.add_argument('--name', default='my-rf-skill')
+    export = commands.add_parser('export', help='Export a native AMS-GRA RF MEL/UCI skill source package')
+    export.add_argument('workspace', type=Path)
+    export.add_argument('--output', type=Path, required=True)
+    workbench = commands.add_parser('workbench', help='Open/create a persistent skill workbench (container entrypoint)')
+    workbench.add_argument('--workspace', type=Path, default=Path('/workspace'))
+    workbench.add_argument('--name', default='my-rf-skill')
     inspect = commands.add_parser("inspect", help="Show receiver metadata and optionally verify every sample hash")
     inspect.add_argument("recording", type=Path)
     inspect.add_argument("--verify", action="store_true")
@@ -37,7 +46,26 @@ def main(argv=None):
     plot.add_argument("--output", type=Path, required=True, help="New directory for results.png")
     args = parser.parse_args(argv)
     try:
-        if args.command == "demo":
+        if args.command == 'init':
+            from .project import init_project
+            result = init_project(args.output, args.name)
+        elif args.command == 'export':
+            from .exporter import export_project
+            result = export_project(args.workspace, args.output)
+        elif args.command == 'workbench':
+            import os
+            from .project import init_project
+            root = args.workspace.resolve()
+            if not (root / 'skill.json').is_file():
+                init_project(root, args.name)
+            if 'RF_HARNESS_CAPTURE_CATALOG' not in os.environ and Path('/recordings').is_dir():
+                from .catalog import discover_recordings
+                os.environ['RF_HARNESS_CAPTURE_CATALOG'] = json.dumps({k: str(v) for k, v in discover_recordings(['/recordings']).items()})
+            os.chdir(root)
+            os.execvp('python3', ['python3', '-m', 'jupyterlab', '--no-browser', '--ip=0.0.0.0',
+                '--port=8888', '--ServerApp.port_retries=0', '--ServerApp.root_dir=' + str(root),
+                '--ServerApp.allow_root=True', '--ServerApp.use_redirect_file=False'])
+        elif args.command == "demo":
             from .demo import write_demo
             result = {"recording": str(write_demo(args.output, kind=args.kind)), "synthetic_fixture": True}
         elif args.command == "plot":

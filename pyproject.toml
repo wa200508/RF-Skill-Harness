@@ -20,7 +20,7 @@ rf-harness = "rf_skill_harness.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-rf_skill_harness = ["timeline.html"]
+rf_skill_harness = ["timeline.html", "native/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,7 @@
+{
+  "rf-fm-demod": {"url": "https://gitlab.com/open-arsenal/ams-gra/hello-world-sk/skills/rf-fm-demod.git", "sha": "74f9b2d5b59da44198ea092289a0d487afac10ac"},
+  "rfmel": {"url": "https://gitlab.com/open-arsenal/ams-gra/hello-world-sk/interfaces/rf-mel.git", "sha": "a8161fa965b37879e2112533a896f210f721a02a"},
+  "mel": {"url": "https://gitlab.com/open-arsenal/ams-gra/hello-world-sk/interfaces/common-mel.git", "sha": "12d9010d7ce71bebf988c25c1d4922430556aeab"},
+  "ams-math": {"url": "https://gitlab.com/open-arsenal/ams-gra/hello-world-sk/libraries/ams-math.git", "sha": "a4e1124fbffa47d0497f4e79efbf37940a22bd08"},
+  "ams-vita": {"url": "https://gitlab.com/open-arsenal/ams-gra/hello-world-sk/libraries/ams-vita.git", "sha": "24f45633974dd1daee21caf0b80d12850d42b513"}
+}

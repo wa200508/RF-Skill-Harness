@@ -8,6 +8,10 @@ import subprocess
 import sys
 import signal
 import tempfile
+from hashlib import sha256
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+from rf_skill_harness.catalog import discover_recordings
 
 
 def command(arguments):
@@ -19,6 +23,12 @@ def main():
     parser.add_argument("--image", default=os.environ.get("RF_HARNESS_IMAGE", "ghcr.io/wa200508/airsim-rf:rf-skill-harness"))
     parser.add_argument("--no-pull", action="store_true", help="Use an explicitly selected local development image")
     subs = parser.add_subparsers(dest="action", required=True)
+    init = subs.add_parser('init', help='Create a skill project without selecting I/Q')
+    init.add_argument('--output', type=Path, required=True)
+    init.add_argument('--name', default='my-rf-skill')
+    export = subs.add_parser('export', help='Export the developed project as a native AMS-GRA skill')
+    export.add_argument('workspace', type=Path)
+    export.add_argument('--output', type=Path, required=True)
     for name in ("inspect", "prepare", "timeline", "run"):
         sub = subs.add_parser(name)
         sub.add_argument("recording", type=Path)
@@ -36,8 +46,10 @@ def main():
     demo.add_argument("--output", type=Path, required=True)
     demo.add_argument("--kind", choices=("direction-finding", "radar"), default="direction-finding")
     lab = subs.add_parser("lab", help="Open an editable JupyterLab workspace on the host's loopback interface")
-    lab.add_argument("recording", type=Path)
-    lab.add_argument("--workspace", type=Path, required=True, help="Existing directory created by prepare")
+    lab.add_argument('recording', type=Path, nargs='?', help='Legacy fixed-capture workspace')
+    lab.add_argument('--recordings', type=Path, action='append', default=[], help='Optional capture or capture library; repeat for multiple locations')
+    lab.add_argument('--name', default='my-rf-skill')
+    lab.add_argument("--workspace", type=Path, required=True, help="Persistent skill project; created automatically if empty")
     lab.add_argument("--port", type=int, default=8888)
     lab.add_argument("--allow-partial", action="store_true")
     plot = subs.add_parser("plot", help="Plot saved scalar results without rerunning DSP")
@@ -57,7 +69,7 @@ def main():
                "-e", "HOME=/tmp", "-e", "XDG_CACHE_HOME=/tmp/.cache"]
     arguments = [args.action]
     recording = None
-    if hasattr(args, "recording"):
+    if getattr(args, 'recording', None) is not None:
         recording = args.recording.expanduser().resolve()
         if not recording.is_dir():
             parser.error("Recording directory does not exist")
@@ -73,12 +85,23 @@ def main():
             arguments += ["--allow-partial"]
     if args.action == "lab":
         workspace = args.workspace.expanduser().resolve()
-        if not (workspace / "analysis.ipynb").is_file() or not (workspace / "project.json").is_file():
-            parser.error("--workspace must be a prepared project with analysis.ipynb and project.json; run prepare first")
+        legacy = recording is not None and (workspace / 'analysis.ipynb').is_file() and not (workspace / 'skill.json').is_file()
+        if workspace.exists() and any(workspace.iterdir()) and not legacy and not (workspace / 'skill.json').is_file():
+            parser.error('--workspace must be an RF skill project or a new/empty directory')
+        workspace.mkdir(parents=True, exist_ok=True)
         options += ["--mount", f"type=bind,src={workspace},dst=/workspace",
                     "--workdir", "/workspace", "--publish", f"127.0.0.1:{args.port}:8888",
-                    "-e", "RF_HARNESS_RECORDING=/recording",
                     "-e", f"RF_HARNESS_ALLOW_PARTIAL={int(args.allow_partial)}", "--entrypoint", "python3"]
+        if recording is not None:
+            options += ['-e', 'RF_HARNESS_RECORDING=/recording']
+        catalog = {}
+        for label, path in discover_recordings(args.recordings).items():
+            mount = '/recordings/' + sha256(str(path).encode()).hexdigest()[:16]
+            options += ['--mount', f'type=bind,src={path},dst={mount},readonly']
+            catalog[label] = mount
+        if recording is not None:
+            catalog.setdefault(recording.parent.name if recording.name == 'iq' else recording.name, '/recording')
+        options += ['-e', 'RF_HARNESS_CAPTURE_CATALOG=' + json.dumps(catalog)]
         print(f"Open http://127.0.0.1:{args.port}/lab and use the token printed below. Ctrl+C stops this lab container.", flush=True)
         # The host-side recording path in project.json is unchanged; notebook
         # kernels use the read-only mount via this process-local environment.
@@ -90,10 +113,11 @@ def main():
             with tempfile.TemporaryDirectory(prefix="rf-harness-lab-") as temporary:
                 cidfile = Path(temporary) / "container.id"
                 try:
-                    command(options + ["--cidfile", str(cidfile), args.image, "-m", "jupyterlab",
-                        "--no-browser", "--ip=0.0.0.0", "--port=8888", "--ServerApp.port_retries=0",
-                        "--ServerApp.root_dir=/workspace", "--ServerApp.allow_root=True",
-                        "--ServerApp.use_redirect_file=False"])
+                    entry = (['-m', 'jupyterlab', '--no-browser', '--ip=0.0.0.0', '--port=8888',
+                              '--ServerApp.port_retries=0', '--ServerApp.root_dir=/workspace',
+                              '--ServerApp.allow_root=True', '--ServerApp.use_redirect_file=False'] if legacy else
+                             ['-m', 'rf_skill_harness', 'workbench', '--workspace', '/workspace', '--name', args.name])
+                    command(options + ["--cidfile", str(cidfile), args.image] + entry)
                 finally:
                     if cidfile.is_file() and cidfile.read_text().strip():
                         container = cidfile.read_text().strip()
@@ -104,6 +128,12 @@ def main():
         finally:
             signal.signal(signal.SIGTERM, previous)
         return
+    if args.action == 'export':
+        workspace = args.workspace.expanduser().resolve()
+        if not (workspace / 'skill.json').is_file():
+            parser.error('Export requires a skill project containing skill.json')
+        options += ['--mount', f'type=bind,src={workspace},dst=/developer,readonly']
+        arguments += ['/developer']
     if args.action == "plot":
         results = args.results.expanduser().resolve()
         if not (results / "results.jsonl").is_file():
@@ -120,6 +150,8 @@ def main():
         arguments += ["--output", "/output"]
     if args.action == "demo":
         arguments += ["--kind", args.kind]
+    if args.action == 'init':
+        arguments += ['--name', args.name]
     if args.action == "inspect" and args.verify:
         arguments += ["--verify"]
     if args.action == "run":

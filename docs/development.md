@@ -1,5 +1,17 @@
 # Build an RF skill from the starter
 
+The normal workflow now starts with `rf-harness init --output my-rf-skill` or
+the project-first container workbench in the [README](../README.md). Select
+captures inside that project; its identity and deployment configuration do not
+come from a recording. `rf-harness export PROJECT --output NEW_DIRECTORY`
+packages the design with a native AMS-GRA receive adapter. See
+[native export](native-export.md) for calibration, reporting and qualification.
+
+The capture-bound `prepare` workflow below remains available for Companion.
+To migrate existing processing, create a new independent project and copy your
+edited processor.py, plot_output.py and helpers into it. Declare the helper files
+and dependencies in skill.json; retain the original recording separately.
+
 `prepare` creates `analysis.ipynb`, `processor.py`, `plot_output.py`,
 `plot_results.py`, a receiver-only `context.json`, `project.json` with the
 recording path, and editable `harness.grc` / `viewer.grc`.

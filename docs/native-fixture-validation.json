@@ -1,0 +1,50 @@
+{
+  "status": "passed",
+  "windows": 2,
+  "channels": 8,
+  "native_factories_jobs_and_callbacks": true,
+  "uci_owp_publications": 4,
+  "signal_reports": 2,
+  "timestamp_low_bits_preserved": true,
+  "idle_subscription_survives_transaction_timeout": true,
+  "simulator_and_harness_packages_absent": true,
+  "qualification_scope": "pinned-interface fixtures; not deployed-provider or full-schema certification",
+  "date_utc": "2026-10-28",
+  "samples_per_window": 4096,
+  "native_compiler": "GNU C++ 13 / Ubuntu 24.04, embedded CPython 3.12",
+  "runtime_user": "1000:1000",
+  "adapter_files_sha256": {
+    "host.cpp": "41299c5a7bb8922690e24bc2dde5ec865ca7a0912365bc0caa60e261f7658aed",
+    "engine.py": "e1dd75225a398ab46be7e3d386cbce2613856bfbc318d3ff5f92c488f8cd6df6",
+    "fetch_dependencies.py": "1c3b71c63a329a18c69ba606879edb2e4b38dc78849bb200fcf7386557e86bfc",
+    "qualify_native.py": "21033d74e6683e0d7e7efd3a565d8701edbd4d5d38f8b966b694cfdbbefc0a2a"
+  },
+  "dependency_revisions": {
+    "rf-fm-demod": {
+      "url": "https://gitlab.com/open-arsenal/ams-gra/hello-world-sk/skills/rf-fm-demod.git",
+      "sha": "74f9b2d5b59da44198ea092289a0d487afac10ac"
+    },
+    "rfmel": {
+      "url": "https://gitlab.com/open-arsenal/ams-gra/hello-world-sk/interfaces/rf-mel.git",
+      "sha": "a8161fa965b37879e2112533a896f210f721a02a"
+    },
+    "mel": {
+      "url": "https://gitlab.com/open-arsenal/ams-gra/hello-world-sk/interfaces/common-mel.git",
+      "sha": "12d9010d7ce71bebf988c25c1d4922430556aeab"
+    },
+    "ams-math": {
+      "url": "https://gitlab.com/open-arsenal/ams-gra/hello-world-sk/libraries/ams-math.git",
+      "sha": "a4e1124fbffa47d0497f4e79efbf37940a22bd08"
+    },
+    "ams-vita": {
+      "url": "https://gitlab.com/open-arsenal/ams-gra/hello-world-sk/libraries/ams-vita.git",
+      "sha": "24f45633974dd1daee21caf0b80d12850d42b513"
+    }
+  },
+  "not_exercised": [
+    "deployed Squall/Couloir provider",
+    "physical RF hardware",
+    "full deployed UCI schema validation",
+    "transmit jobs"
+  ]
+}

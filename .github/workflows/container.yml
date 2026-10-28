@@ -10,6 +10,31 @@ concurrency:
   group: rf-skill-harness-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  native-export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: docker/setup-buildx-action@v3
+      - name: Prepare an eight-antenna native contract fixture
+        run: |
+          python -m pip install -e .
+          python scripts/prepare_native_fixture.py --output "$RUNNER_TEMP/native-skill"
+      - name: Compile the exported native RF MEL and UCI host
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ runner.temp }}/native-skill
+          target: native-test
+          load: true
+          tags: native-rf-skill:test
+          build-args: BUILD_NATIVE_FIXTURE=ON
+          cache-from: type=gha,scope=native-export
+          cache-to: type=gha,mode=max,scope=native-export
+      - name: Run native factories, RX jobs, callbacks, coherent DSP and UCI/OWP offline
+        run: docker run --rm --network none native-rf-skill:test --expect-signal
   qualify:
     runs-on: ubuntu-latest
     timeout-minutes: 25

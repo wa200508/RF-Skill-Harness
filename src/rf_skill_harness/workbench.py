@@ -14,7 +14,9 @@ def open_project(directory="."):
     project = json.loads((root / "project.json").read_text())
     recording = os.environ.get("RF_HARNESS_RECORDING")
     if not recording:
-        recording = root / project["recording_dir"]
+        if not project.get('recording_dir'):
+            raise ValueError('This skill project has no fixed recording; select a capture in the workbench')
+        recording = root / project['recording_dir']
     return Archive(recording, allow_partial=(project.get("allow_partial", False)
         or os.environ.get("RF_HARNESS_ALLOW_PARTIAL") == "1"))
 
@@ -38,6 +40,173 @@ def run_window(archive, index=0, processor=None):
         raise ValueError("process_window must return a JSON-compatible dict")
     json.dumps(measurements, allow_nan=False)
     return window, metadata, measurements
+
+
+def available_recordings(directory='.'):
+    """A lab session's test inputs; deliberately separate from skill.json."""
+    root = Path(directory).resolve()
+    result = {}
+    path = root / 'recordings.json'
+    if path.is_file():
+        for label, value in json.loads(path.read_text()).items():
+            result[label] = str((root / value).resolve())
+    result.update(json.loads(os.environ.get('RF_HARNESS_CAPTURE_CATALOG', '{}')))
+    return result
+
+
+def project_notebook():
+    """Skill-first UI, usable before any recording has been supplied."""
+    from copy import deepcopy
+    template = notebook()
+    def cell(kind, source):
+        value = {'cell_type': kind, 'id': sha256(source.encode()).hexdigest()[:12],
+                 'metadata': {}, 'source': source.splitlines(keepends=True)}
+        if kind == 'code':
+            value.update(execution_count=None, outputs=[])
+        return value
+    result = deepcopy(template)
+    result['cells'] = [
+        cell('markdown', '''# Develop an RF skill → test captures → native AMS-GRA export
+
+This project exists independently of its test captures. Edit `processor.py` beside
+this notebook. Select a capture and window, click **Process window**, inspect
+standard and custom plots, then revise. Changing captures keeps the same design.
+Use notebook cells for exploratory arrays and custom scripts. Native deployment
+configuration belongs in `config/`; selecting a test capture never changes it.
+'''),
+        cell('code', '''%matplotlib inline
+from pathlib import Path
+import json
+import tempfile
+import shutil
+import matplotlib.pyplot as plt
+import ipywidgets as widgets
+from IPython.display import display, clear_output
+from rf_skill_harness.archive import Archive
+from rf_skill_harness.workbench import available_recordings, run_window
+from rf_skill_harness.plotting import plot_iq
+from rf_skill_harness.results import load_processor, ResultJournal
+
+catalog = available_recordings()
+capture = widgets.Dropdown(options=list(catalog), description='Capture:')
+window_index = widgets.BoundedIntText(value=0, min=0, max=1000000000, description='Window:')
+antenna = widgets.Dropdown(options=[], description='Antenna:')
+process_button = widgets.Button(description='Process window', button_style='primary')
+save_button = widgets.Button(description='Save experiment')
+inspect_button = widgets.Button(description='Verify capture')
+output = widgets.Output()
+current = {}
+
+def select_capture(change=None):
+    current.clear()
+    process_button.disabled = inspect_button.disabled = save_button.disabled = True
+    if capture.value is None:
+        with output:
+            print('No captures mounted. Restart the launcher with --recordings PATH, or add paths to recordings.json and rerun this cell.')
+        return
+    try:
+        archive = Archive(catalog[capture.value])
+        current['archive'] = archive
+        process_button.disabled = inspect_button.disabled = False
+        window_index.max = archive.manifest['windows'] - 1
+        window_index.value = 0
+        antenna.options = archive.channels
+        antenna.value = archive.channels[0]
+        with output:
+            clear_output(wait=True)
+            print(json.dumps(archive.context(), indent=2))
+    except Exception as error:
+        with output:
+            clear_output(wait=True)
+            print(type(error).__name__ + ': ' + str(error))
+
+def process_selected(button=None):
+    save_button.disabled = True
+    with output:
+        clear_output(wait=True)
+        try:
+            archive = current['archive']
+            window, metadata, measurements = run_window(archive, window_index.value, 'processor.py:process_window')
+            context = archive.context()
+            plt.close('all')
+            input_figure = plot_iq(window, context, channel=antenna.value)
+            output_figure = load_processor('plot_output.py:plot_output')(window.samples, metadata, context, measurements)
+            current.update(window=window, metadata=metadata, measurements=measurements,
+                           context=context, input_figure=input_figure, output_figure=output_figure)
+            save_button.disabled = False
+            print(json.dumps({'metadata': metadata, 'measurements': measurements}, indent=2)[:8000])
+            display(input_figure, output_figure)
+        except Exception:
+            current.pop('measurements', None)
+            import traceback
+            traceback.print_exc()
+
+def save_experiment(button=None):
+    with output:
+        if 'measurements' not in current:
+            print('Process a window successfully before saving.')
+            return
+        Path('experiments').mkdir(exist_ok=True)
+        directory = Path(tempfile.mkdtemp(prefix='run-', dir='experiments'))
+        journal = ResultJournal(directory, current['context'], processor='processor.py:process_window')
+        status = 'failed'
+        try:
+            journal.write(current['metadata'], current['context']['channels'], current['measurements'])
+            status = 'complete'
+        finally:
+            journal.close(status, execution_backend='direct-python-window')
+        for name in ('processor.py', 'report.py', 'plot_output.py', 'skill.json'):
+            shutil.copyfile(name, directory / name)
+        for name in ('input_figure', 'output_figure'):
+            current[name].savefig(directory / (name + '.png'), dpi=150)
+        print('Saved:', directory.resolve())
+
+def verify_capture(button=None):
+    with output:
+        if 'archive' in current:
+            print(current['archive'].inspect(verify=True)['sample_hashes_verified'])
+
+capture.observe(select_capture, names='value')
+process_button.on_click(process_selected)
+save_button.on_click(save_experiment)
+inspect_button.on_click(verify_capture)
+display(widgets.VBox([capture, window_index, antenna,
+    widgets.HBox([process_button, inspect_button, save_button]), output]))
+select_capture()
+'''),
+        cell('markdown', '''## Your scratch cells
+
+After processing, `current` contains `window`, `metadata`, `context`, and
+`measurements`. Add cells to examine intermediates or write custom plots.
+Each Process click reloads file-based hooks and starts fresh processor state.
+Use sequential batch replay with one callable instance for stateful warm-up.
+
+## Export the skill
+
+Edit `skill.json` for identity, helper files and dependencies; edit `report.py`
+for your explicit result-to-UCI Signal mapping. Configure `config/receiver.json`
+and `config/runtime.json` for the deployed MEL stream IDs and calibrated voltage
+scale. These are independent of whichever test capture is selected.
+
+Export does not bundle recordings, notebooks or this workbench. This first native
+profile schedules RX only; active radar TX needs a transmit-capable profile.
+Generated code must still pass provider integration and UCI schema validation.
+'''),
+        cell('code', '''from rf_skill_harness.exporter import export_project
+export_path = widgets.Text(value='exports/my-rf-skill', description='Output:')
+export_button = widgets.Button(description='Export native skill', button_style='success')
+export_output = widgets.Output()
+def export_native(button=None):
+    with export_output:
+        clear_output(wait=True)
+        try:
+            print(json.dumps(export_project('.', export_path.value), indent=2))
+        except Exception as error:
+            print(type(error).__name__ + ': ' + str(error))
+export_button.on_click(export_native)
+display(widgets.VBox([export_path, export_button, export_output]))
+''')]
+    return result
 
 
 def notebook():

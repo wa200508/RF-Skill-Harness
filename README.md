@@ -1,7 +1,8 @@
 # RF Skill Harness
 
-Develop an RF skill from saved receiver I/Q: **edit Python → run one acquisition
-window → visualize outputs → revise** in **JupyterLab**. Use **GNU Radio Companion
+Create an independent RF skill project, develop it against selectable I/Q test
+captures, then **export a native AMS-GRA RF MEL/UCI receive skill**. Iterate **edit →
+process a block → plot → revise** in **JupyterLab**. Use **GNU Radio Companion
 3.10** for graphical block development and GNU Radio for repeatable batch replay.
 It works on CPU and has no AirSim, Sionna, GPU or detector dependency.
 
@@ -12,9 +13,12 @@ flowchart LR
   B --> N["JupyterLab: select one coherent window"]
   C --> D["INSERT SIGNAL PROCESSING HERE"]
   N --> D
+  S["Independent skill project + deployment config"] --> D
   D --> E["GNU Radio result messages + JSONL"]
   D --> P["Custom output plots + saved experiments"]
   C --> F["Optional Companion spectrum viewer"]
+  D --> X["Export declared design + native adapter"]
+  X --> Y["RF MEL acquisition + UCI/OWP service"]
 ```
 
 ## Which interface fits?
@@ -30,53 +34,118 @@ JupyterLab executes the Python hook directly; it does not run the GNU Radio
 scheduler. The CLI additionally exercises stream tags, coherent window reassembly
 and backpressure. Both use the original receiver data and the same hook contract.
 
-## Use your recorded I/Q
+## Launch the workbench—no capture or clone required
 
-The container launcher needs Linux, Docker and host Python 3.10+. No GPU is needed.
-
-Copy the **whole `iq/` folder** from
-`airsim-rf/recordings/dashboard/replays/<run-id>/iq/`. A mission folder containing
-`iq/` also works. Data stays on disk; the harness reads it without making another
-bulk copy. For a remote simulation host, transfer that folder with your normal
-file-copy tool first. Large recordings are not stored in this Git repository.
+The skill project comes first. I/Q recordings are replaceable test fixtures,
+not the definition of a skill. Linux, Docker, host Python 3.10+ and curl are
+needed by the launcher; DSP, JupyterLab and plotting run in the CPU container.
 
 ```bash
-git clone https://github.com/wa200508/RF-Skill-Harness.git
-cd RF-Skill-Harness
-
-# Pull the CPU container and verify the capture.
-bash scripts/run_harness.sh inspect /path/to/iq --verify
-
-# Generate an editable notebook, Python hooks, GNU Radio graphs and RF timeline.
-bash scripts/run_harness.sh prepare /path/to/iq --output workspace/my-skill
-
-# Start the browser workspace; no host Jupyter or GNU Radio install is needed.
-bash scripts/run_harness.sh lab /path/to/iq --workspace workspace/my-skill
+curl -fsSL https://raw.githubusercontent.com/wa200508/RF-Skill-Harness/main/scripts/start_workbench.sh \
+  -o start_workbench.sh
+bash start_workbench.sh --workspace "$PWD/my-rf-skill" --name my-rf-skill
 ```
 
-Open **http://127.0.0.1:8888/lab**, using the token printed by Jupyter. Open
-`analysis.ipynb` and Run All once, then iterate:
+The launcher pulls/verifies the public image, downloads launcher code pinned to
+that image's source revision, creates an independent project if the workspace
+is empty, and starts the browser service. It honors the active Python virtual
+environment or `RF_HARNESS_PYTHON`. Rootless Docker UID mapping is automatic.
 
-1. Set `window_index` and `display_channel` in the processing cell. All coherent
-   antenna channels still reach the processor.
-2. Open `processor.py` beside the notebook, edit and save your DSP.
-3. Rerun the processing cell and the plots. Each call reloads the file's source.
-4. Use the standard voltage/FFT/spectrogram plots for input inspection. Edit
-   `plot_output.py`, or add notebook cells, for your range–Doppler map, MUSIC
-   search, demodulated symbols or other outputs.
-5. Run the optional save cell to write JSONL, metadata, source snapshots and PNGs
-   into a new `workspace/my-skill/experiments/window-*/` directory.
+Open **http://127.0.0.1:8888/lab** with Jupyter's printed token. Open
+`analysis.ipynb` and Run All to show the capture selector, processing controls and
+export button. With no captures supplied, the workspace still opens normally.
 
-Use `%matplotlib widget` instead of `%matplotlib inline` for interactive pan/zoom.
-Restart the kernel after changing imported helper modules. Single-window calls
-start fresh processor state; use sequential replay for algorithms needing warm-up.
-The input spectrogram is **not** a radar range–Doppler product: your processor
-must interpret chirps and ADC gates using the supplied acquisition metadata.
+When test data is available, restart the **same project** with one or more capture
+locations. A location can be one `iq/` directory, a mission containing `iq/`, or
+a directory of recorded runs:
 
-Changes and saved experiments are ordinary files on the host. **Ctrl+C stops and
-removes the lab container**; the workspace remains. Use `--port 8889` if 8888 is
-busy. The port is bound to host loopback, including with rootless Docker. For a
-remote host, forward it with `ssh -L 8888:127.0.0.1:8888 user@host`.
+```bash
+bash start_workbench.sh --workspace "$PWD/my-rf-skill" \
+  --recordings /path/to/capture-library \
+  --recordings /path/to/another-run/iq
+```
+
+Only receiver I/Q directories are mounted read-only by this launcher; adjacent
+mission truth, camera and source telemetry directories are not mounted. Capture
+selection and verification happen in the workbench. The recording is never
+copied into the skill project. `recordings.json` provides local capture paths
+for native Python users; container mount paths are supplied per lab session.
+
+1. Select a capture, acquisition window and display antenna. All coherent
+   antenna channels reach the processor; the antenna choice affects only plots.
+2. Edit `processor.py`, save, then click **Process window**. Source reloads on
+   every click. Use **Verify capture** to check the full recording's sample hashes.
+3. Edit `plot_output.py` or add notebook cells for custom maps and intermediate
+   arrays. Standard voltage, FFT and spectrogram plots inspect the input.
+4. Save an experiment to `my-rf-skill/experiments/run-*/` when desired.
+5. Set deployment configuration and UCI result mapping, then **Export native skill**.
+
+`current` in the notebook exposes the selected window, metadata, context and
+measurements for custom scripts. Single-window processing starts fresh hook
+state; use sequential replay for algorithms requiring warm-up. The spectrogram
+is not automatically a radar range–Doppler map. Your DSP interprets ADC gates.
+
+Ctrl+C stops and removes the lab container; project files persist on the host.
+Use `--port 8889` for a second workbench. Ports bind to host loopback, including
+rootless Docker. For a remote host: `ssh -L 8888:127.0.0.1:8888 user@host`.
+
+From a checkout, the equivalent launcher is
+`bash scripts/run_harness.sh lab --workspace ./my-rf-skill --recordings /path/to/iq`.
+`init --name my-rf-skill --output ./my-rf-skill` creates a project without starting
+Jupyter. The old capture-bound `prepare` command remains for Companion graphs
+and existing workspaces; it is not the normal skill-creation workflow.
+
+## Export a native AMS-GRA RF skill
+
+The exported skill runs the **same declared Python DSP files** behind a C++ RF MEL
+host. It loads a real provider through `createAdminMEL`, `createC2MEL` and
+`createDataMEL`, requests a Virtual Aperture and receive jobs, consumes
+`ProductRxEndpoint` callbacks, and publishes UCI `SignalReport` / `ServiceStatus`
+through OWP. It does not use our project-specific receiver TCP interface.
+
+Before exporting, edit these project files:
+
+| File | What belongs there |
+| --- | --- |
+| `processor.py` | Your tested, source-independent signal processing. |
+| `report.py` | Explicit mapping from algorithm measurements to UCI Signal entries. Empty means no reportable detections; no detections are invented from the starter's RMS statistics. |
+| `skill.json` | Identity, declared helper/model files, Python dependencies, processor/reporter entrypoints and capabilities. |
+| `config/receiver.json` | Deployed receiver/antenna calibration and acquisition configuration. Selecting a test capture never changes it. |
+| `config/runtime.json` | MEL stream IDs mapped to antenna channels, calibrated **volts per signed integer count**, processing/event sizes, OWP identity/topics and reporting rates. Unknown voltage calibration blocks export. |
+| `config/rf_mel_registry.json` | Provider shared-library and provider configuration paths. |
+
+Use the notebook export button or the container command:
+
+```bash
+bash scripts/run_harness.sh export ./my-rf-skill --output ./exports/my-rf-skill
+cd exports/my-rf-skill
+docker build -t my-rf-skill:local .
+# Then run with the deployed provider, configuration and starter-kit network;
+# the exported README gives the deployment command.
+```
+
+Exports include a Dockerfile, the unchanged declared design files, native adapter,
+pinned upstream dependency revisions, configuration, notices and source hashes.
+They exclude test captures, notebooks, experiments and the harness runtime. The
+production image needs no Jupyter, GNU Radio, AirSim or Sionna installation.
+Only file-based DSP hooks are exported; arbitrary edits to a replay `.grc` graph
+are not automatically translated into a deployable skill.
+
+**The initial native profile implements receive jobs.** It supports coherent
+channels when callbacks identify one configured native stream per buffer.
+Ambiguous packed streams, sample gaps, rate changes and queue overruns fail
+explicitly. It does not generate active radar transmit jobs; a transmit-capable
+profile is required before exporting that functionality.
+
+**An export is not a conformance certificate.** The manifest records provider
+integration and UCI schema validation as not run. Validate against your deployed
+MEL provider, hardware calibration, UCI schema and OWP authorization before
+claiming AMS-GRA compliance. Native fixture qualification and its limits are
+covered in [the export guide](docs/native-export.md).
+
+Reference contracts: [RF FM Demod](https://gitlab.com/open-arsenal/ams-gra/hello-world-sk/skills/rf-fm-demod),
+[external interfaces](https://gitlab.com/open-arsenal/ams-gra/hello-world-sk/skills/rf-fm-demod/-/blob/74f9b2d5b59da44198ea092289a0d487afac10ac/docs/contracts.md),
+and [RF MEL IDD interfaces](https://gitlab.com/open-arsenal/ams-gra/hello-world-sk/interfaces/rf-mel).
 
 ## Repeatable runs and scripts
 
@@ -84,13 +153,13 @@ After editing, run exactly one original window through GNU Radio:
 
 ```bash
 bash scripts/run_harness.sh run /path/to/iq \
-  --processor "$PWD/workspace/my-skill/processor.py:process_window" \
+  --processor "$PWD/my-rf-skill/processor.py:process_window" \
   --start-window 0 --stop-window 1 \
-  --output workspace/my-skill/experiments/batch-1
+  --output my-rf-skill/experiments/batch-1
 
 # Plot saved scalar outputs without running the signal processing again.
-bash scripts/run_harness.sh plot workspace/my-skill/experiments/batch-1 \
-  --output workspace/my-skill/experiments/batch-1-plots
+bash scripts/run_harness.sh plot my-rf-skill/experiments/batch-1 \
+  --output my-rf-skill/experiments/batch-1-plots
 ```
 
 Remove the window bounds to process the whole recording, or select a larger
@@ -175,7 +244,7 @@ for a subset. Wall pacing never changes recorded acquisition time. A slow
 processor applies backpressure. There is no total run deadline or implicit loop.
 Use `--allow-partial` only for a stable, stopped copy of an interrupted capture.
 
-Every experiment writes a new output directory:
+Every batch run writes a new output directory:
 
 - `context.json`: complete captured receiver configuration and channel order.
 - `results.jsonl`: one timestamped result per processed coherent window.
