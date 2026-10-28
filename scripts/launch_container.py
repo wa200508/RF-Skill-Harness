@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import signal
+import tempfile
 
 
 def command(arguments):
@@ -33,7 +35,17 @@ def main():
     demo = subs.add_parser("demo")
     demo.add_argument("--output", type=Path, required=True)
     demo.add_argument("--kind", choices=("direction-finding", "radar"), default="direction-finding")
+    lab = subs.add_parser("lab", help="Open an editable JupyterLab workspace on the host's loopback interface")
+    lab.add_argument("recording", type=Path)
+    lab.add_argument("--workspace", type=Path, required=True, help="Existing directory created by prepare")
+    lab.add_argument("--port", type=int, default=8888)
+    lab.add_argument("--allow-partial", action="store_true")
+    plot = subs.add_parser("plot", help="Plot saved scalar results without rerunning DSP")
+    plot.add_argument("results", type=Path)
+    plot.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if args.action == "lab" and not 1024 <= args.port <= 65535:
+        parser.error("--port must be between 1024 and 65535 (also for rootless Docker)")
     if not args.no_pull:
         command(["docker", "pull", args.image])
     command(["docker", "image", "inspect", "--format", "{{.Id}}", args.image])
@@ -41,7 +53,7 @@ def main():
                               check=True, capture_output=True, text=True)
     rootless = "rootless" in security.stdout.lower()
     uid = "0:0" if rootless else f"{os.getuid()}:{os.getgid()}"
-    options = ["docker", "run", "--rm", "--init", "--network", "none", "--user", uid,
+    options = ["docker", "run", "--rm", "--init", "--network", "bridge" if args.action == "lab" else "none", "--user", uid,
                "-e", "HOME=/tmp", "-e", "XDG_CACHE_HOME=/tmp/.cache"]
     arguments = [args.action]
     recording = None
@@ -59,6 +71,45 @@ def main():
         arguments += ["/recording"]
         if args.allow_partial:
             arguments += ["--allow-partial"]
+    if args.action == "lab":
+        workspace = args.workspace.expanduser().resolve()
+        if not (workspace / "analysis.ipynb").is_file() or not (workspace / "project.json").is_file():
+            parser.error("--workspace must be a prepared project with analysis.ipynb and project.json; run prepare first")
+        options += ["--mount", f"type=bind,src={workspace},dst=/workspace",
+                    "--workdir", "/workspace", "--publish", f"127.0.0.1:{args.port}:8888",
+                    "-e", "RF_HARNESS_RECORDING=/recording",
+                    "-e", f"RF_HARNESS_ALLOW_PARTIAL={int(args.allow_partial)}", "--entrypoint", "python3"]
+        print(f"Open http://127.0.0.1:{args.port}/lab and use the token printed below. Ctrl+C stops this lab container.", flush=True)
+        # The host-side recording path in project.json is unchanged; notebook
+        # kernels use the read-only mount via this process-local environment.
+        # An explicit container ID also lets SIGTERM clean up a closed terminal.
+        def interrupted(signum, frame):
+            raise KeyboardInterrupt
+        previous = signal.signal(signal.SIGTERM, interrupted)
+        try:
+            with tempfile.TemporaryDirectory(prefix="rf-harness-lab-") as temporary:
+                cidfile = Path(temporary) / "container.id"
+                try:
+                    command(options + ["--cidfile", str(cidfile), args.image, "-m", "jupyterlab",
+                        "--no-browser", "--ip=0.0.0.0", "--port=8888", "--ServerApp.port_retries=0",
+                        "--ServerApp.root_dir=/workspace", "--ServerApp.allow_root=True",
+                        "--ServerApp.use_redirect_file=False"])
+                finally:
+                    if cidfile.is_file() and cidfile.read_text().strip():
+                        container = cidfile.read_text().strip()
+                        subprocess.run(["docker", "stop", "--time", "5", container],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        subprocess.run(["docker", "rm", "--force", container],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        finally:
+            signal.signal(signal.SIGTERM, previous)
+        return
+    if args.action == "plot":
+        results = args.results.expanduser().resolve()
+        if not (results / "results.jsonl").is_file():
+            parser.error("Results directory must contain results.jsonl")
+        options += ["--mount", f"type=bind,src={results},dst=/results,readonly"]
+        arguments += ["/results"]
     output = None
     if hasattr(args, "output"):
         output = args.output.expanduser().resolve()
@@ -94,6 +145,10 @@ def main():
             entry = next(b for b in graph["blocks"] if b["name"] == "recording_dir")
             entry["parameters"]["value"] = os.path.relpath(actual, output)
             path.write_text(json.dumps(graph, indent=2) + "\n")
+        path = output / "project.json"
+        project = json.loads(path.read_text())
+        project["recording_dir"] = os.path.relpath(actual, output)
+        path.write_text(json.dumps(project, indent=2) + "\n")
     if output:
         print("Host output: " + str(output))
 

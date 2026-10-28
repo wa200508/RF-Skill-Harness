@@ -1,7 +1,8 @@
 # Build an RF skill from the starter
 
-`prepare` creates `processor.py`, a receiver-only `context.json`, and editable
-`harness.grc` / `viewer.grc`. Edit the hook or insert your own GNU Radio blocks.
+`prepare` creates `analysis.ipynb`, `processor.py`, `plot_output.py`,
+`plot_results.py`, a receiver-only `context.json`, `project.json` with the
+recording path, and editable `harness.grc` / `viewer.grc`.
 The default code computes voltage statistics so you can verify the plumbing
 before implementing an algorithm.
 
@@ -34,6 +35,88 @@ remain available. Use a separate output directory for every experiment.
 Changing replay speed changes pacing only. Stateful algorithms may need earlier
 windows for warm-up when selecting a subset. Input samples are read-only; make
 an explicit copy if your algorithm needs in-place operations.
+
+## Notebook and custom plotting
+
+The browser workflow is described in the [README](../README.md). For native
+Python, the optional lab dependencies are installed with:
+
+```bash
+python -m pip install -e '.[lab]'
+python -m jupyterlab --notebook-dir=workspace/my-skill
+```
+
+Use an activated Python 3.10+ virtual environment. Direct notebook processing
+needs no GNU Radio. If you also want native GNU Radio replay, create the
+system-site-packages virtual environment described below instead. The container
+lab already includes both runtimes, with no host GUI toolkit requirement.
+
+The generated notebook calls this public API, which a custom script can use too:
+
+```python
+from rf_skill_harness.archive import Archive
+from rf_skill_harness.workbench import run_window
+from rf_skill_harness.plotting import plot_iq
+
+archive = Archive('/path/to/iq')
+window, metadata, result = run_window(
+    archive, 0, '/path/to/my-skill/processor.py:process_window')
+figure = plot_iq(window, archive.context(), channel=archive.channels[0])
+figure.savefig('input.png')
+```
+
+`run_window` verifies the selected samples and provides byte-identical coherent
+I/Q, original metadata and receiver context to the same hook used by GNU Radio.
+Each call reloads file-based source and creates fresh processor state. Imported
+helper modules follow Python's normal cache rules: restart the notebook kernel
+or reload those modules explicitly when editing them. Exceptions are shown in
+the notebook; the hook must return the same finite JSON-compatible dictionary
+required by batch replay.
+
+For stateful experiments, load the callable once and visit preceding windows in
+order, including any required warm-up; do not repeatedly call `run_window`:
+
+```python
+from rf_skill_harness.results import load_processor
+
+process = load_processor('/path/to/my-skill/processor.py:process_window')
+for window in archive.windows(start_window=0, stop_window=3):
+    result = process(window.samples, window.metadata(), archive.context())
+    # INSERT CUSTOM PLOTTING OR RESULT STORAGE HERE.
+```
+
+`plot_output.py:plot_output(iq, metadata, context, measurements)` is a separate
+visualization hook returning a Matplotlib Figure. It initially plots RMS voltage;
+replace it for your algorithm. The notebook prints other output schemas until
+you supply their visualization. All DSP remains in `processor.py`, independent
+of Jupyter or plotting dependencies. To expose arrays through the existing hook
+contract, use `.tolist()`; represent complex arrays as real/imaginary pairs.
+Large intermediate tensors are usually easier to inspect directly in notebook
+cells while prototyping than to serialize in every production result.
+
+The standard I/Q figure displays the first 4,096 time samples, up to 65,536 FFT
+samples and up to 131,072 spectrogram samples of the selected channel. It labels
+these extents, voltage units and baseband/beat-frequency offsets explicitly.
+Processing still receives the complete original window and every channel. These
+plots are not calibrated dBm, dBFS, PSD or automatically formed radar maps.
+
+For custom offline analysis of batch outputs, edit the prepared script or write
+your own. In a native environment with Matplotlib installed:
+
+```bash
+python workspace/my-skill/plot_results.py workspace/my-skill/experiments/batch-1 \
+  --output batch-1.png
+```
+
+The standard script and `rf-harness plot` read only results.jsonl, plot up to 24
+scalar dictionary leaves with separate axes, and subtract integer acquisition
+timestamps before converting relative time to seconds. They skip lists/maps
+requiring domain-specific interpretation. Plotting saved results never reruns DSP.
+
+The lab mounts only receiver I/Q/metadata read-only and the chosen developer
+workspace read-write. It uses a host loopback port and Jupyter's normal token
+authentication. Stopping the launcher cleans up its own container ID, preserving
+the developer files. It never edits the archive or mounts mission evaluation truth.
 
 ## GNU Radio block interface
 
@@ -84,7 +167,8 @@ The GUI launcher adds the checkout to `PYTHONPATH` for Companion and the Python
 it generates. If your existing virtual environment lacks the system GNU Radio
 bindings, select `RF_HARNESS_PYTHON=/usr/bin/python3` explicitly for the launcher.
 Archive inspection/project generation need only Python 3.10+ and NumPy;
-execution needs GNU Radio 3.10. GNU Radio/Qt GUI work is native; the default
+opening the generated notebook and plotting additionally require `.[lab]`.
+Stream execution needs GNU Radio 3.10. GNU Radio/Qt GUI work is native; the default
 container launcher is headless and needs no host display socket.
 
 ## Container builds and verification
@@ -106,6 +190,9 @@ user. Tests cover exact multi-channel bytes, nanosecond tags, subset replay,
 radar gate preservation, corruption/metadata failures, a failing developer hook,
 Companion compilation and the Qt viewer offscreen. Synthetic demo captures
 exercise the interface; physical RF or scene-accuracy validation is separate.
+Both radar and direction-finding notebooks execute all cells in CI, including
+custom plots and saved experiments. A parity test checks that a selected window
+produces the same metadata and measurements through Python and GNU Radio.
 
 The source uses Apache-2.0. GNU Radio and system packages retain their licenses;
 consult those licenses when redistributing a combined runtime or derived work.

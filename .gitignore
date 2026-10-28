@@ -8,3 +8,4 @@ datasets/
 runs/
 workspace/
 *.sigmf-data
+.ipynb_checkpoints/

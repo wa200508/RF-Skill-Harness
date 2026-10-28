@@ -14,7 +14,7 @@ def main(argv=None):
     inspect = commands.add_parser("inspect", help="Show receiver metadata and optionally verify every sample hash")
     inspect.add_argument("recording", type=Path)
     inspect.add_argument("--verify", action="store_true")
-    prepare = commands.add_parser("prepare", help="Create editable GNU Radio graphs and a processor.py hook")
+    prepare = commands.add_parser("prepare", help="Create a notebook, plotting hooks and editable GNU Radio graphs")
     prepare.add_argument("recording", type=Path)
     prepare.add_argument("--output", type=Path, required=True)
     timeline = commands.add_parser("timeline", help="Build the RF acquisition schedule automatically from metadata")
@@ -32,11 +32,25 @@ def main(argv=None):
     demo = commands.add_parser("demo", help="Write a small synthetic protocol fixture, not a scene simulation")
     demo.add_argument("--output", type=Path, required=True)
     demo.add_argument("--kind", choices=("direction-finding", "radar"), default="direction-finding")
+    plot = commands.add_parser("plot", help="Plot saved scalar outputs without replaying I/Q")
+    plot.add_argument("results", type=Path)
+    plot.add_argument("--output", type=Path, required=True, help="New directory for results.png")
     args = parser.parse_args(argv)
     try:
         if args.command == "demo":
             from .demo import write_demo
             result = {"recording": str(write_demo(args.output, kind=args.kind)), "synthetic_fixture": True}
+        elif args.command == "plot":
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+            from .plotting import plot_results
+            from .paths import new_directory
+            root = new_directory(args.output)
+            figure = plot_results(args.results)
+            figure.savefig(root / "results.png", dpi=150)
+            plt.close(figure)
+            result = {"figure": str(root / "results.png")}
         elif args.command == "inspect":
             result = Archive(args.recording, allow_partial=args.allow_partial).inspect(verify=args.verify)
         elif args.command == "prepare":

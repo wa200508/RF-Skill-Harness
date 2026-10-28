@@ -25,7 +25,7 @@ jobs:
           build-args: SOURCE_REVISION=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Native GNU Radio, Companion, receiver metadata and schedule tests
+      - name: Native GNU Radio, Companion, notebook, plotting and receiver metadata tests
         run: |
           docker run --rm --network none -e QT_QPA_PLATFORM=offscreen \
             --entrypoint timeout rf-skill-harness:test 180 \
@@ -44,6 +44,8 @@ jobs:
             run "$RUNNER_TEMP/harness-demo" \
             --processor "$RUNNER_TEMP/harness-project/processor.py:process_window" \
             --output "$RUNNER_TEMP/harness-results"
+          bash scripts/run_harness.sh --image rf-skill-harness:test --no-pull \
+            plot "$RUNNER_TEMP/harness-results" --output "$RUNNER_TEMP/harness-plots"
           python3 - <<'PY'
           import json,os
           from pathlib import Path
@@ -51,6 +53,10 @@ jobs:
           summary=json.loads((root/'harness-results/run.json').read_text())
           assert summary['status']=='complete' and summary['windows']==6
           assert (root/'harness-project/timeline.html').is_file()
+          assert (root/'harness-project/analysis.ipynb').is_file()
+          assert (root/'harness-plots/results.png').stat().st_size>1000
+          project=json.loads((root/'harness-project/project.json').read_text())
+          assert (root/'harness-project'/project['recording_dir']).resolve()==(root/'harness-demo').resolve()
           PY
       # Public releases are built from a pinned commit of this repository by
       # airsim-rf/.github/workflows/rf-skill-harness.yml. Reusing its established

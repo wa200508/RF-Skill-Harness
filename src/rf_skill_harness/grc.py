@@ -87,19 +87,30 @@ def prepare_project(directory, output, *, allow_partial=False):
     for filename, gui in (("harness.grc", False), ("viewer.grc", True)):
         (root / filename).write_text(json.dumps(flowgraph(archive, relative, gui=gui,
                                                        allow_partial=allow_partial), indent=2) + "\n")
-    shutil.copyfile(Path(__file__).with_name("processor.py"), root / "processor.py")
+    for filename in ("processor.py", "plot_output.py", "plot_results.py"):
+        shutil.copyfile(Path(__file__).with_name(filename), root / filename)
+    from .workbench import notebook
+    (root / "analysis.ipynb").write_text(json.dumps(notebook(), indent=2) + "\n")
+    (root / "project.json").write_text(json.dumps({"schema_version": 1,
+        "recording_dir": relative, "allow_partial": allow_partial}, indent=2) + "\n")
     (root / "context.json").write_text(json.dumps(archive.context(), indent=2) + "\n")
     from .schedule import write_timeline
     write_timeline(archive, root)
     (root / "README.md").write_text("""# Your RF skill workspace
 
 Edit **processor.py → process_window(iq, metadata, context)**.
+Open **analysis.ipynb** in JupyterLab to select a window, run the hook, inspect
+standard I/Q plots and visualize your outputs. Save processor.py and rerun its
+processing cell to load fresh code. Edit **plot_output.py** for your custom plot.
+The notebook runs your Python hook directly; GNU Radio replay separately tests
+the streaming integration. **plot_results.py** plots saved scalar CLI results.
 Open **timeline.html** to inspect the RF acquisition schedule automatically
 derived from metadata: receive windows, plus configured radar TX and ADC gates.
 `iq` has shape `[sample, channel]`, complex64 volts, with recorded channel order.
 Open **harness.grc** or **viewer.grc** in GNU Radio Companion from this directory.
 `recording_dir` points to the original read-only archive; no I/Q is copied here.
-If you move this workspace or archive, update that parameter or pass --recording-dir.
+If you move this workspace or archive, update project.json and the GRC parameter,
+or use the container lab launcher with the recording's new path.
 Use the CLI for explicit failure status and an unpaced run:
 
 ```sh
@@ -112,4 +123,5 @@ an explicit acquisition-time/tag adapter. Zero-filled radar gate gaps are retain
 Context is receiver metadata, not simulator paths, scene truth or target labels.
 """)
     return {"project": str(root), "recording": str(archive.path), "channels": archive.channels,
-            "files": ["harness.grc", "viewer.grc", "processor.py", "context.json", "timeline.html", "schedule.json", "README.md"]}
+            "files": ["analysis.ipynb", "project.json", "processor.py", "plot_output.py", "plot_results.py",
+                      "harness.grc", "viewer.grc", "context.json", "timeline.html", "schedule.json", "README.md"]}

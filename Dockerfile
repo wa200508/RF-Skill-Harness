@@ -23,9 +23,18 @@ LABEL org.opencontainers.image.source="https://github.com/wa200508/RF-Skill-Harn
       org.opencontainers.image.licenses="Apache-2.0"
 WORKDIR /opt/rf-skill-harness
 COPY pyproject.toml LICENSE ./
-COPY src/ src/
-RUN python3 -m pip install --no-deps --no-build-isolation --break-system-packages . \
+# Share the distro's GNU Radio bindings while installing lab packages separately.
+# --without-pip avoids another distro package: the system pip is visible through
+# --system-site-packages and installs into this venv, not over apt-owned files.
+RUN python3 -m venv --without-pip --system-site-packages /opt/rf-harness-venv
+ENV PATH="/opt/rf-harness-venv/bin:$PATH"
+RUN --mount=type=secret,id=proxy_ca,mode=0444 \
+    if [ -f /run/secrets/proxy_ca ]; then export PIP_CERT=/run/secrets/proxy_ca; fi; \
+    python3 -c 'import subprocess,sys,tomllib; spec=tomllib.load(open("pyproject.toml", "rb")); subprocess.check_call([sys.executable,"-m","pip","install","--no-cache-dir","numpy<2",*spec["project"]["optional-dependencies"]["lab"]])' \
     && groupadd --gid 10001 rf && useradd --uid 10001 --gid rf --create-home rf
+COPY src/ src/
+# grcc uses the distro interpreter; both it and the lab venv must see this wheel.
+RUN /usr/bin/python3 -m pip install --no-deps --no-cache-dir --no-build-isolation --break-system-packages .
 COPY --chmod=755 scripts/ scripts/
 COPY --chmod=755 tests/ tests/
 USER rf

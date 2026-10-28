@@ -29,7 +29,9 @@ def load_processor(spec=None):
         if parent not in sys.path:
             sys.path.insert(0, parent)
         sys.modules[identifier] = imported
-        description.loader.exec_module(imported)
+        # Iterative notebook edits can have identical size and filesystem mtime.
+        # Read source every time instead of reusing timestamp-based .pyc files.
+        exec(compile(path.read_bytes(), str(path), "exec"), imported.__dict__)
     else:
         imported = importlib.import_module(module)
     function = getattr(imported, name)

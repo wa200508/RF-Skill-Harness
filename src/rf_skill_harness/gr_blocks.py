@@ -56,10 +56,7 @@ class ArchiveSource(gr.sync_block):
             "rx_rate": pmt.from_double(float(self.archive.rate)),
             "rx_freq": pmt.from_double(float(self.archive.carrier)),
             "rf_timestamp_ns": pmt.from_uint64(window.timestamp_ns),
-            "rf_window": pmt.intern(json.dumps({"index": window.index,
-                "timestamp_ns": window.timestamp_ns, "sample_start": window.sample_start,
-                "samples": len(window.samples),
-                "clipped_component_fraction": window.clipped_component_fraction}, allow_nan=False)),
+            "rf_window": pmt.intern(json.dumps(window.metadata(), allow_nan=False)),
         }
         if self.first:
             tags["rf_context"] = pmt.intern(json.dumps(self.archive.context(), allow_nan=False))

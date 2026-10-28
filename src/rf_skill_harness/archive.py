@@ -38,6 +38,12 @@ class Window:
     samples: np.ndarray  # [sample, channel], complex64 volts
     clipped_component_fraction: dict
 
+    def metadata(self):
+        """The same acquisition metadata delivered to the GNU Radio hook."""
+        return {"index": self.index, "timestamp_ns": self.timestamp_ns,
+                "sample_start": self.sample_start, "samples": len(self.samples),
+                "clipped_component_fraction": dict(self.clipped_component_fraction)}
+
 
 class Archive:
     def __init__(self, directory, *, allow_partial=False):
