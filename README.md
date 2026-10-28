@@ -21,6 +21,32 @@ flowchart LR
   X --> Y["RF MEL acquisition + UCI/OWP service"]
 ```
 
+## Workbench in action
+
+Live JupyterLab screenshots using the bundled **synthetic I/Q fixtures** and the
+voltage-statistics starter. Notebook code inputs are collapsed for readability.
+
+**Select a capture and window, process it, and inspect the measurements.**
+
+![Workbench capture selector, processing controls, voltage measurements and I/Q waveform](docs/images/workbench-process.png)
+
+<details>
+<summary>See the I/Q diagnostics and native skill export</summary>
+
+**Inspect complex voltage, FFT magnitude and the within-window spectrogram.**
+
+![Radar fixture I/Q waveform, FFT magnitude and spectrogram in the live workbench](docs/images/workbench-iq.png)
+
+**Save an experiment and export the receive skill.** The eight-channel RMS plot
+comes from the starter processor; the file browser shows the generated package.
+The export shown uses fixture-only deployment settings.
+
+![Eight-channel processor output, saved experiment and native RF MEL/UCI export with generated files](docs/images/workbench-export.png)
+
+</details>
+
+[Screenshot setup and reproduction](docs/images/README.md).
+
 ## Which interface fits?
 
 | Interface | Best use here | Fit for the development loop |
