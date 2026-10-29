@@ -1,0 +1,25 @@
+id: rfskill_measurements
+label: RF Window Measurements
+category: '[RF Skill]'
+flags: [python]
+parameters:
+- id: channels
+  label: Coherent channels
+  dtype: int
+  default: channel_count
+- id: processor
+  label: Local Python window hook
+  dtype: string
+  default: processor.py:process_window
+inputs:
+- domain: stream
+  dtype: complex
+  vlen: ${ channels }
+templates:
+  imports: import skill_io
+  make: skill_io.WindowSink(${channels}, ${processor})
+documentation: |-
+  Collect the processed finite acquisition window, then call the local Python hook.
+  Edit processor.py for detection/results, report.py for the UCI mapping.
+  RX blocks must preserve vector channel order, count and acquisition time.
+file_format: 1

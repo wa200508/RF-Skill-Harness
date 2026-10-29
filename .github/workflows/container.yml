@@ -1,7 +1,7 @@
 name: Qualify GNU Radio RF skill harness
 on:
   push:
-    branches: [main]
+    branches: [main, feature/gnuradio-companion]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -10,6 +10,32 @@ concurrency:
   group: rf-skill-harness-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  companion-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GNU Radio's matching compiler and bindings
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gnuradio python3-numpy python3-yaml
+      - name: Export a capture-free TX/RX flowgraph
+        env:
+          PYTHONPATH: src
+        run: /usr/bin/python3 scripts/prepare_companion_fixture.py --output "$RUNNER_TEMP/companion-skill"
+      - uses: docker/setup-buildx-action@v3
+      - name: Compile exported GNU Radio and native RF MEL TX/RX
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ runner.temp }}/companion-skill
+          target: native-test
+          load: true
+          tags: companion-native:test
+          build-args: BUILD_NATIVE_FIXTURE=ON
+          cache-from: type=gha,scope=companion-native
+          cache-to: type=gha,mode=max,scope=companion-native
+      - name: Verify native TX samples, schedule, RX DSP, timestamps and OWP offline
+        run: docker run --rm --network none -e QT_QPA_PLATFORM=offscreen companion-native:test --expect-transmit
   native-export:
     runs-on: ubuntu-latest
     timeout-minutes: 25

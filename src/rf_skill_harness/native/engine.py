@@ -69,6 +69,21 @@ class Engine:
             'units': 'volts', 'voltage_reference': self.receiver.get('voltage_reference', 'calibrated complex volts'),
             'receiver_config': self.receiver, 'timestamp_clock': 'RF MEL acquisition UTC',
             'acquisition_source': 'ams-gra-rf-mel', 'clipping_metadata_available': False}
+        self.context['window_samples'] = self.size
+        if self.config.get('transmit'):
+            self.context['transmit'] = self.config['transmit']
+
+    def transmit_iq(self):
+        """One fixed arbitrary waveform, represented as signed ComplexINT16."""
+        tx = self.config['transmit']
+        generate = load_hook(self.root, self.design['transmitter'])
+        values = np.asarray(generate(self.context, tx['samples']), np.complex64)
+        if values.shape != (tx['samples'],) or not np.isfinite(values).all():
+            raise ValueError('TX hook must return exactly transmit.samples finite complex samples')
+        if np.any(abs(values.real) > 1) or np.any(abs(values.imag) > 1):
+            raise ValueError('Normalized TX components must be in [-1, 1]; no implicit clipping')
+        pairs = np.column_stack((values.real, values.imag))
+        return np.rint(pairs * 32767).astype('<i2').tobytes()
 
     def consume(self, payload, metadata_json):
         native = json.loads(metadata_json)
@@ -141,12 +156,15 @@ class Engine:
     def _append(self, channel, start, values, native):
         start = Fraction(start)
         if channel in self.expected and abs(start - self.expected[channel]) > 1:
-            raise ValueError('MEL acquisition gap/overlap; refusing to concatenate discontinuous I/Q')
+            tx = self.config.get('transmit')
+            gap = tx['sequence_duration_fs'] - self.config['receive_duration_fs'] if tx else None
+            if not (tx and self.count[channel] == 0 and abs(start - self.expected[channel] - gap) <= 1):
+                raise ValueError('MEL acquisition gap/overlap; refusing to concatenate discontinuous I/Q')
         if self.count[channel] == 0:
             self.starts[channel] = start
         self.first_start.setdefault(channel, start)
         interval = tuple(native.get(k) for k in ('va_instance_id', 'job_details_id', 'job_interval_id'))
-        if channel in self.last_interval and interval != self.last_interval[channel] and native.get('phase_coherence_with_prior') is False:
+        if channel in self.last_interval and interval != self.last_interval[channel] and native.get('phase_coherence_with_prior') is False and not (self.config.get('transmit') and self.count[channel] == 0):
             sample_offset = (start - self.first_start[channel]) * Fraction(str(self.rate)) / 10**15
             if sample_offset.denominator != 1 or sample_offset.numerator % self.size:
                 raise ValueError('MEL phase discontinuity inside a processing window')

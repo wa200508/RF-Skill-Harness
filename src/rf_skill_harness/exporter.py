@@ -25,8 +25,9 @@ def export_project(workspace, output):
         raise ValueError('Expected a schema-v1 native AMS-GRA skill.json')
     if not re.fullmatch('[a-z][a-z0-9-]{0,62}', spec.get('name', '')):
         raise ValueError('Skill name must be a lowercase deployment identifier')
-    if spec.get('capabilities') != ['receive']:
-        raise ValueError('This native export profile implements receive jobs; TX jobs require a separate implemented profile')
+    if spec.get('capabilities') not in (['receive'], ['receive', 'transmit']):
+        raise ValueError('Supported profiles are receive or receive+transmit')
+    transmit = 'transmit' in spec['capabilities']
     files = spec.get('files', [])
     if not files or len(files) != len(set(files)):
         raise ValueError('Declare a unique explicit files list for the skill design')
@@ -49,7 +50,7 @@ def export_project(workspace, output):
                 if any(m.split('.')[0] in {'rf_skill_harness', 'airsim_rf', 'projectairsim', 'sionna', 'mitsuba'} for m in imports):
                     raise ValueError('Exported DSP must be independent of the harness/simulator: ' + name)
         payloads[name] = content
-    for field in ('processor', 'reporter'):
+    for field in (('processor', 'reporter', 'transmitter') if transmit else ('processor', 'reporter')):
         filename, separator, function = spec.get(field, '').partition(':')
         if not separator or not function.isidentifier() or filename not in payloads:
             raise ValueError(f'{field} must identify a declared Python file:function')
@@ -96,6 +97,22 @@ def export_project(workspace, output):
     duration = Fraction(event_samples * 10**15, 1) / Fraction(str(receiver['sample_rate_hz']))
     if duration.denominator != 1:
         raise ValueError('Receive event duration must align to RF MEL femtoseconds')
+    if transmit:
+        tx = config.get('transmit', {})
+        if (type(tx.get('samples')) is not int or not 1 <= tx['samples'] <= 65536
+                or type(tx.get('guard_samples')) is not int or not 1 <= tx['guard_samples'] <= 65536
+                or type(tx.get('tx_power_w')) is not int or not 0 < tx['tx_power_w'] < 2**32
+                or type(tx.get('tx_power_mode_id')) is not int or not 0 <= tx['tx_power_mode_id'] < 2**32
+                or type(tx.get('attenuation_db')) not in (float, int) or not math.isfinite(tx['attenuation_db']) or tx['attenuation_db'] < 0):
+            raise ValueError('TX requires bounded samples, guard_samples, provider power watts/mode and finite attenuation')
+        if count != event_samples:
+            raise ValueError('The initial TX/RX profile processes one complete RX event per window')
+        tx_duration = Fraction(tx['samples'] * 10**15, rate)
+        guard_duration = Fraction(tx['guard_samples'] * 10**15, rate)
+        if tx_duration.denominator != 1 or guard_duration.denominator != 1:
+            raise ValueError('TX/guard duration must align to RF MEL femtoseconds')
+        tx.update(duration_fs=int(tx_duration), rx_start_fs=int(tx_duration + guard_duration),
+                  sequence_duration_fs=int(tx_duration + 2 * guard_duration + duration))
     registry = project / 'config/rf_mel_registry.json'
     entry = _read(registry).get(str(config.get('rf_mel_id')))
     if not isinstance(entry, dict) or any(not isinstance(entry.get(k), str) or not entry[k] for k in ('config', 'library')):
@@ -168,8 +185,9 @@ not run. Contract-shaped scaffolding is not a conformance certificate.
 The test target checks design hashes, coherent read-only windows, voltage units
 and finite outputs on zero input. It does not substitute for provider validation.
 
-This initial native profile schedules receive events only. It does not synthesize
-radar TX jobs, convert simulator truth into measurements, or infer UCI semantics
-from arbitrary detector outputs. Active radar requires a transmit-capable profile.
+{'This profile repeats a fixed graph-generated complex waveform using RF MEL WaveformBuffer and TransmitEvent. The sequence is TX, guard, RX, guard; events do not overlap. Configure provider-supported waveform modulation, TX element groups, power mode, whole-watt base power and attenuation. Dynamic waveform streaming, feedback-dependent TX, native streaming-block state across windows and simultaneous TX/RX are outside this initial profile.' if transmit else 'This profile schedules receive events only. Active transmit requires the transmit-capable Companion profile.'}
+
+Test captures are replaceable development inputs. Deployment always obtains
+samples from RF MEL; no particular saved collect is required by this package.
 ''')
     return {'export': str(root), 'interface': spec['interface'], 'name': spec['name'], 'certified': False}

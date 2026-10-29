@@ -1,0 +1,21 @@
+id: rfskill_rx
+label: RF Receive Endpoint
+category: '[RF Skill]'
+flags: [python]
+parameters:
+- id: channels
+  label: Coherent channels
+  dtype: int
+  default: channel_count
+outputs:
+- domain: stream
+  dtype: complex
+  vlen: ${ channels }
+templates:
+  imports: import skill_io
+  make: skill_io.RxSource(${channels})
+documentation: |-
+  Coherent complex voltage vectors from the bound acquisition, never a fixed file.
+  Select a test capture in the RF Skill panel. Native export binds RF MEL samples.
+  One vector contains simultaneous antennas. RF window/context/time tags are retained.
+file_format: 1

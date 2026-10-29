@@ -1,5 +1,10 @@
 # Native RF MEL/UCI export
 
+**Companion branch:** [the Companion guide](companion.md) describes graph export,
+optional Qt plots and the new fixed-waveform TX/guard/RX/guard profile. The
+Python-hook/Jupyter profile described below remains receive-only by default.
+Companion exports include GNU Radio; Python-hook exports do not need it.
+
 The workbench is a development tool. Its output is an independent skill source
 distribution containing the declared design, a native host and deployment
 configuration. The design is not tied to its test capture. `prepare` still
@@ -82,11 +87,12 @@ transaction timeout and requires continued service health and clean shutdown.
   sizes. `receive_event_samples` determines requested receive-event duration.
   Native callbacks are bounded to 65,536 complex samples by this profile.
 
-The first export profile schedules **receive** jobs only. Receiving already
+The original Python-hook profile schedules **receive** jobs only. Receiving already
 dechirped radar data can exercise radar DSP, but commanding active radar TX,
 waveform streaming and synchronized TX/RX jobs requires a transmit-capable
-profile. Export rejects an unsupported transmit capability rather than silently
-emitting a receiver-only package.
+profile. This branch supplies that profile for a fixed graph-generated waveform;
+see [its implemented limits](companion.md#transmit). Export requires an explicit
+transmitter hook, bounded timing and provider power configuration for TX.
 
 ## Output semantics
 

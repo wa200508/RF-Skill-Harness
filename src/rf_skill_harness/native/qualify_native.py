@@ -21,11 +21,15 @@ def main():
     parser.add_argument('--build-dir', type=Path, required=True)
     parser.add_argument('--executable', type=Path, help='Production binary to qualify; otherwise use build-dir/rf-skill')
     parser.add_argument('--expect-signal', action='store_true')
+    parser.add_argument('--expect-transmit', action='store_true')
     parser.add_argument('--idle-seconds', type=float, default=6, help='Keep the optional position subscription silent beyond the transaction timeout')
     args = parser.parse_args()
-    for name in ('rf_skill_harness', 'airsim_rf', 'projectairsim', 'sionna', 'mitsuba', 'gnuradio'):
-        assert importlib.util.find_spec(name) is None, 'Qualify without the harness/simulator/GNU Radio: ' + name
     root = args.bundle.resolve()
+    design = json.loads((root / 'skill.json').read_text())
+    for name in ('rf_skill_harness', 'airsim_rf', 'projectairsim', 'sionna', 'mitsuba'):
+        assert importlib.util.find_spec(name) is None, 'Qualify without the harness/simulator/GNU Radio: ' + name
+    if not design.get('companion'):
+        assert importlib.util.find_spec('gnuradio') is None, 'The Python-hook profile needs no GNU Radio'
     config = json.loads((root / 'config/runtime.json').read_text())
     receiver = json.loads((root / 'config/receiver.json').read_text())
     rate = receiver['sample_rate_hz']
@@ -35,6 +39,9 @@ def main():
     epoch = 1_700_000_000_000_000_007
     duration_ns = count * 10**9 // rate
     assert duration_ns * rate == count * 10**9
+    if config.get('transmit'):
+        duration_ns = config['transmit']['sequence_duration_fs'] // 10**6
+        assert duration_ns * 10**6 == config['transmit']['sequence_duration_fs']
     with tempfile.TemporaryDirectory(prefix='native-rf-qualification-') as temporary:
         work = Path(temporary)
         frames = []
@@ -42,7 +49,16 @@ def main():
             for stream in config['stream_channels']:
                 frames.append({'stream_id': int(stream), 'timestamp_ns': epoch + window * duration_ns,
                     'samples': [[int(stream) * 10, -int(stream) * 10]] * count})
-        (work / 'provider.json').write_text(json.dumps({'sample_rate_hz': rate, 'frames': frames}))
+        provider = {'sample_rate_hz': rate, 'frames': frames}
+        if args.expect_transmit:
+            import numpy as np
+            description = importlib.util.spec_from_file_location('qualify_engine', root / 'runtime/engine.py')
+            module = importlib.util.module_from_spec(description)
+            description.loader.exec_module(module)
+            preview_config = {**config, 'skill_root': str(root), 'receiver_config': str(root / 'config/receiver.json'), 'results_dir': None}
+            engine = module.Engine(json.dumps(preview_config))
+            provider.update(expected_tx=np.frombuffer(engine.transmit_iq(), '<i2').reshape(-1, 2).tolist(), tx_log=str(work / 'tx.json'))
+        (work / 'provider.json').write_text(json.dumps(provider))
         (work / 'registry.json').write_text(json.dumps({'1': {'config': str(work / 'provider.json'),
             'library': str(args.build_dir.resolve() / 'libtest_mel.so')}}))
         with socket.socket() as available:
@@ -113,9 +129,11 @@ def main():
                 except subprocess.TimeoutExpired:
                     router.kill(); router.wait()
             assert skill.returncode == 0, f'Exit {skill.returncode}: ' + (work / 'skill.log').read_text()
+        tx_result = json.loads((work / 'tx.json').read_text()) if args.expect_transmit else None
         print(json.dumps({'status': 'passed', 'windows': len(entries), 'channels': len(config['stream_channels']),
             'native_factories_jobs_and_callbacks': True, 'uci_owp_publications': len(published),
             'signal_reports': len(signals), 'timestamp_low_bits_preserved': True,
+            'transmit_waveform': tx_result,
             'idle_subscription_survives_transaction_timeout': args.idle_seconds >= 6,
             'simulator_and_harness_packages_absent': True,
             'qualification_scope': 'pinned-interface fixtures; not deployed-provider or full-schema certification'}, indent=2))
