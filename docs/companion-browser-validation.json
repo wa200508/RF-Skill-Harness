@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "graphics": {
+    "qt_opengl": true,
+    "renderer": "llvmpipe (LLVM 20.1.2, 256 bits)",
+    "opengl_version": "4.5",
+    "gtk_version": "3.24"
+  },
+  "browser_connected": true,
+  "qt_rx_tx_plots": true,
+  "browser_edit_saved_on_host": true,
+  "native_export_persisted": true,
+  "reconnect_preserved_session": true,
+  "browser_close_keeps_server_running": true,
+  "container_cleanup": true,
+  "restart_preserves_project": true,
+  "fixture": "synthetic radar protocol fixture; no radio/GPU"
+}

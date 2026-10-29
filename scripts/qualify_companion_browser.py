@@ -97,7 +97,10 @@ def main():
                 tools_id = next(v.split()[0] for v in windows().splitlines() if 'Companion tools' in v)
                 def focus_tools():
                     execute('wmctrl', '-ia', tools_id)
+                    wait_for(lambda: int(execute('xprop', '-root', '_NET_ACTIVE_WINDOW').split()[-1], 16)
+                             == int(tools_id, 16), 'RF tools keyboard focus')
                     click(1740, 60)
+                    page.wait_for_timeout(200)
                 # Actual browser mouse input starts the selected window's DSP.
                 focus_tools(); page.keyboard.press('Control+Enter')
                 listing = wait_for(lambda: (v if 'completed window' in (v := windows()) else None), 'Qt RX/TX plots')
@@ -126,7 +129,7 @@ def main():
                 path = workspace / 'config/runtime.json'; config = json.loads(path.read_text())
                 config['volts_per_count'] = {'rx0': .001}; config['transmit']['tx_power_w'] = 1
                 path.write_text(json.dumps(config))
-                focus_tools(); page.keyboard.press('Control+Shift+e')
+                focus_tools(); page.keyboard.press('Control+Shift+E')
                 wait_for(lambda: 'New export directory' in windows(), 'export directory dialog')
                 page.keyboard.press('Enter')
                 exported = workspace / 'exports/my-rf-skill/export-manifest.json'

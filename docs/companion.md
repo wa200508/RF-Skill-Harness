@@ -213,3 +213,15 @@ source .venv/bin/activate
 python -m pip install -e .
 bash scripts/start_companion_native.sh --workspace "$PWD/my-rf-skill" --transmit
 ```
+
+
+### Browser qualification evidence
+
+[Recorded browser validation](companion-browser-validation.json) and the README's
+browser screenshots were captured on 2026-10-29 from the built image, with no
+source mounts, host X11 socket or GPU devices. Chromium interacted with the
+noVNC canvas. The server created a real Qt OpenGL 4.5 context on llvmpipe, rendered
+RX/TX plots, saved an editor change onto the host and exported a native TX/RX skill
+through the GUI. Browser reconnect and container restart preserved the expected
+session/project state, and shutdown removed the launcher's container. The I/Q was
+the bundled synthetic radar fixture; this checks deployment, not physical RF accuracy.

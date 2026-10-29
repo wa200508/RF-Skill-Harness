@@ -6,28 +6,28 @@ interface**. This experimental route lives on `feature/gnuradio-companion`;
 [main](https://github.com/wa200508/RF-Skill-Harness/tree/main) keeps the
 [JupyterLab workbench](docs/jupyter-workbench.md).
 
-Companion with the RF endpoint library, custom Python DSP and plot taps (native
-editor view; the browser server presents this same desktop):
+The browser workbench runs the real Companion editor and RF tools panel:
 
-![Live GNU Radio Companion editor with the RX and TX skill graph](docs/images/companion-editor.png)
+![Companion and RF tools connected through the noVNC browser client](docs/images/companion-browser-desktop.png)
 
 <details>
-<summary>See the export selector and live RX/TX plots</summary>
+<summary>See browser-rendered RX/TX plots and a saved native export</summary>
 
-The tools panel selects external test data and which plots to retain. This export
-completed with the spectrum plot selected and a native TX/RX profile.
+These are actual Chromium/noVNC screenshots processing the bundled **synthetic
+radar protocol fixture** and generating the starter TX tone.
 
-![RF Skill tools panel with a selected capture and successful native export](docs/images/companion-tools.png)
+![RX waveform, spectrum and TX waveform rendered inside the browser desktop](docs/images/companion-browser-plots.png)
 
-The preview shows actual processing of the bundled **synthetic radar protocol
-fixture**, plus the graph-generated TX tone. It is an interface demonstration.
+The export below was created through the browser GUI and saved in the persistent
+workspace. Example calibration/power settings are interface-fixture values.
 
-![Qt preview with receive I/Q, spectrum and generated transmit waveform](docs/images/companion-preview.png)
+![Completed native TX/RX export in the browser workbench](docs/images/companion-browser-export.png)
 
 </details>
 
 ```mermaid
 flowchart LR
+  B["Browser / noVNC"] <-->|Display and input| G
   G["Companion: skill.grc + custom Python blocks"] --> C["GNU Radio compiler"]
   D["Selectable test collects: I/Q + receiver metadata"] --> P["Preview / multi-collect evaluation"]
   C --> P
