@@ -86,6 +86,7 @@ from rf_skill_harness.archive import Archive
 from rf_skill_harness.workbench import available_recordings, run_window
 from rf_skill_harness.plotting import plot_iq
 from rf_skill_harness.results import load_processor, ResultJournal
+from rf_skill_harness.evaluation import project_processor
 
 catalog = available_recordings()
 capture = widgets.Dropdown(options=list(catalog), description='Capture:')
@@ -126,7 +127,7 @@ def process_selected(button=None):
         clear_output(wait=True)
         try:
             archive = current['archive']
-            window, metadata, measurements = run_window(archive, window_index.value, 'processor.py:process_window')
+            window, metadata, measurements = run_window(archive, window_index.value, project_processor('.'))
             context = archive.context()
             plt.close('all')
             input_figure = plot_iq(window, context, channel=antenna.value)

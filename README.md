@@ -175,6 +175,29 @@ and [RF MEL IDD interfaces](https://gitlab.com/open-arsenal/ams-gra/hello-world-
 
 ## Repeatable runs and scripts
 
+**One skill, many collects.** Select another capture in the workbench to test the
+same design. Captures provide sample rate, channel order, antenna calibration,
+acquisition timing and I/Q through the input contract; they never supply detector
+code or change the skill's deployment configuration. Algorithms should consume
+that metadata or explicitly reject unsupported sensor configurations. A skill
+supporting one antenna layout or waveform need not support every other layout.
+
+To evaluate the same declared skill against several independent collects:
+
+```bash
+bash scripts/run_harness.sh evaluate ./my-rf-skill \
+  --recordings /path/to/development-collect/iq \
+  --recordings /path/to/held-out-collect/iq \
+  --output ./evaluations/held-out-1
+```
+
+Each collect starts fresh processor state and receives its own result directory.
+`evaluation.json` records the design/configuration hashes, per-collect completion
+and timings; a design change during evaluation fails the run. No I/Q is copied
+into the project or export. Evaluation uses `skill.json`'s processor entrypoint,
+as does the workbench. Native Python's equivalent is `rf-harness evaluate` with
+the same arguments. Deployments obtain new samples from RF MEL, not a saved file.
+
 After editing, run exactly one original window through GNU Radio:
 
 ```bash

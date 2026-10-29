@@ -17,6 +17,12 @@ def main(argv=None):
     export = commands.add_parser('export', help='Export a native AMS-GRA RF MEL/UCI skill source package')
     export.add_argument('workspace', type=Path)
     export.add_argument('--output', type=Path, required=True)
+    evaluate = commands.add_parser('evaluate', help='Test the same unchanged skill on multiple independent captures')
+    evaluate.add_argument('workspace', type=Path)
+    evaluate.add_argument('--recordings', type=Path, action='append', required=True)
+    evaluate.add_argument('--output', type=Path, required=True)
+    evaluate.add_argument('--start-window', type=int, default=0)
+    evaluate.add_argument('--stop-window', type=int)
     workbench = commands.add_parser('workbench', help='Open/create a persistent skill workbench (container entrypoint)')
     workbench.add_argument('--workspace', type=Path, default=Path('/workspace'))
     workbench.add_argument('--name', default='my-rf-skill')
@@ -52,6 +58,10 @@ def main(argv=None):
         elif args.command == 'export':
             from .exporter import export_project
             result = export_project(args.workspace, args.output)
+        elif args.command == 'evaluate':
+            from .evaluation import evaluate_project
+            result = evaluate_project(args.workspace, args.recordings, args.output,
+                start_window=args.start_window, stop_window=args.stop_window)
         elif args.command == 'workbench':
             import os
             from .project import init_project

@@ -29,6 +29,12 @@ def main():
     export = subs.add_parser('export', help='Export the developed project as a native AMS-GRA skill')
     export.add_argument('workspace', type=Path)
     export.add_argument('--output', type=Path, required=True)
+    evaluate = subs.add_parser('evaluate', help='Evaluate one unchanged skill on independent captures')
+    evaluate.add_argument('workspace', type=Path)
+    evaluate.add_argument('--recordings', type=Path, action='append', required=True)
+    evaluate.add_argument('--output', type=Path, required=True)
+    evaluate.add_argument('--start-window', type=int, default=0)
+    evaluate.add_argument('--stop-window', type=int)
     for name in ("inspect", "prepare", "timeline", "run"):
         sub = subs.add_parser(name)
         sub.add_argument("recording", type=Path)
@@ -128,12 +134,23 @@ def main():
         finally:
             signal.signal(signal.SIGTERM, previous)
         return
-    if args.action == 'export':
+    if args.action in ('export', 'evaluate'):
         workspace = args.workspace.expanduser().resolve()
         if not (workspace / 'skill.json').is_file():
             parser.error('Export requires a skill project containing skill.json')
         options += ['--mount', f'type=bind,src={workspace},dst=/developer,readonly']
         arguments += ['/developer']
+    if args.action == 'evaluate':
+        captures = discover_recordings(args.recordings)
+        if not captures:
+            parser.error('No receiver captures found')
+        for index, path in enumerate(captures.values()):
+            mount = f'/recordings/capture-{index:03d}'
+            options += ['--mount', f'type=bind,src={path},dst={mount},readonly']
+            arguments += ['--recordings', mount]
+        arguments += ['--start-window', str(args.start_window)]
+        if args.stop_window is not None:
+            arguments += ['--stop-window', str(args.stop_window)]
     if args.action == "plot":
         results = args.results.expanduser().resolve()
         if not (results / "results.jsonl").is_file():
