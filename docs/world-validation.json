@@ -1,0 +1,48 @@
+{
+  "status": "passed",
+  "interface": "gnuradio-world",
+  "browser_wasm_dsp": true,
+  "python_gain_edited": true,
+  "rx_tx_samples_processed": true,
+  "rx_tx_plots": true,
+  "dataset_switch_preserves_design": true,
+  "project_file_saved_in_browser": true,
+  "exact_nanosecond_metadata": true,
+  "native_window_test": {
+    "metadata": {
+      "index": 1,
+      "timestamp_ns": "123456789004000007",
+      "sample_start": 40000,
+      "samples": 40000,
+      "clipped_component_fraction": {
+        "radar_rx0": 0
+      }
+    },
+    "measurements": {
+      "algorithm": "insert-signal-processing-here",
+      "rms_volts": {
+        "radar_rx0": 0.03200478645871176
+      },
+      "peak_volts": {
+        "radar_rx0": 0.04155897721648216
+      }
+    },
+    "tx_samples": 256
+  },
+  "native_export": {
+    "export": "/scratch/rf-world-project/exports/skill-7bd300514a56",
+    "interface": "ams-gra-rf-mel-uci",
+    "name": "my-rf-skill",
+    "certified": false,
+    "retained_visualizations": [],
+    "transmit": true
+  },
+  "reload_preserves_skill": true,
+  "page_errors": [],
+  "qualification_environment": "local container, source/assets mounted; real Chromium browser and WASM DSP",
+  "regression_suite": {
+    "passed": 81,
+    "skipped": 4,
+    "skips": "Jupyter-only checks in browser-development image"
+  }
+}

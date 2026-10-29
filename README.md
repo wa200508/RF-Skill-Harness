@@ -12,6 +12,15 @@ keeps the independent JupyterLab workflow.
 
 ![GNU Radio World processing recorded RX I/Q and a generated TX waveform](docs/images/world-plots.png)
 
+<details>
+<summary>Editor and native export</summary>
+
+![GNU Radio World canvas with the RF skill toolbar](docs/images/world-editor.png)
+
+![Native AMS-GRA export from the browser](docs/images/world-export.png)
+
+</details>
+
 ## Launch
 
 Requirements: Docker, Python 3.10+, curl, and a recent Chromium or Firefox browser.

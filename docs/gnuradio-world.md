@@ -120,6 +120,11 @@ this development file-editor service.
 
 ## Validation
 
+[Local validation results](world-validation.json) record the actual browser run
+and 81 passing regression tests (4 Jupyter-only checks skipped in the browser
+development image). The recorded local run mounts development source/assets;
+CI additionally exercises the installed image without source mounts.
+
 The browser qualifier loads the installed server image without source mounts,
 changes the Python gain, runs real WebAssembly DSP, checks block sample counters
 and plot data, changes captures without changing the saved graph, edits a project
