@@ -6,6 +6,25 @@ interface**. This experimental route lives on `feature/gnuradio-companion`;
 [main](https://github.com/wa200508/RF-Skill-Harness/tree/main) keeps the
 [JupyterLab workbench](docs/jupyter-workbench.md).
 
+Stock Companion with the RF endpoint library, custom Python DSP and plot taps:
+
+![Live GNU Radio Companion editor with the RX and TX skill graph](docs/images/companion-editor.png)
+
+<details>
+<summary>See the export selector and live RX/TX plots</summary>
+
+The tools panel selects external test data and which plots to retain. This export
+completed with the spectrum plot selected and a native TX/RX profile.
+
+![RF Skill tools panel with a selected capture and successful native export](docs/images/companion-tools.png)
+
+The preview shows actual processing of the bundled **synthetic radar protocol
+fixture**, plus the graph-generated TX tone. It is an interface demonstration.
+
+![Qt preview with receive I/Q, spectrum and generated transmit waveform](docs/images/companion-preview.png)
+
+</details>
+
 ```mermaid
 flowchart LR
   G["Companion: skill.grc + custom Python blocks"] --> C["GNU Radio compiler"]

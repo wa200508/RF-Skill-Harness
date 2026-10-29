@@ -145,3 +145,11 @@ without inventing a detection. It is not live Squall integration, physical radar
 validation, full UCI schema validation or AMS-GRA certification. Qualify against
 your deployed provider, power configuration, calibration and mission controls.
 [Native export details](native-export.md).
+
+[Recorded qualification summary](companion-validation.json).
+The README's Companion screenshots were captured on 2026-10-29 from actual
+GNU Radio 3.10.9.2 windows: GTK editor under Xvfb and the Qt tools/preview under
+offscreen Qt. They show the stock starter, a real successful export with one
+selected plot, and processing of the synthetic radar protocol fixture. The
+example calibration and power settings were fixture values. No screenshots
+were composited and no hardware or live provider is implied by those images.

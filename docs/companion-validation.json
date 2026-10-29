@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-29",
+  "environment": "Ubuntu 24.04 CPU container; GNU Radio 3.10.9.2; Qt offscreen",
+  "full_suite": {
+    "passed": 78,
+    "command": "python3 -m pytest tests -q -p no:cacheprovider"
+  },
+  "editor_startup": "GNU Radio Companion GTK: skill.grc loaded with RF OOT block library; Done",
+  "native_interface_fixture": {
+    "status": "passed",
+    "windows": 2,
+    "channels": 1,
+    "native_factories_jobs_and_callbacks": true,
+    "uci_owp_publications": 2,
+    "signal_reports": 0,
+    "timestamp_low_bits_preserved": true,
+    "transmit_waveform": {
+      "iq_matches_graph": true,
+      "rx_start_fs": 144000000000,
+      "samples": 256,
+      "sequence_duration_fs": 2208000000000,
+      "tx_duration_fs": 128000000000
+    },
+    "idle_subscription_survives_transaction_timeout": true,
+    "simulator_and_harness_packages_absent": true,
+    "qualification_scope": "pinned-interface fixtures; not deployed-provider or full-schema certification"
+  },
+  "certified": false
+}

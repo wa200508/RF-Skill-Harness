@@ -149,7 +149,7 @@ def starter_graph(transmit=False):
     def block(name, identifier, parameters, x, y):
         return {'name': name, 'id': identifier, 'parameters': parameters,
             'states': {'coordinate': [x, y], 'rotation': 0, 'state': 'enabled'}}
-    blocks = [block(n, 'parameter', {'type': t, 'value': v}, 20 + i*210, 20)
+    blocks = [block(n, 'parameter', {'type': t, 'value': v}, 240 + i*210, 20)
               for i, (n, t, v) in enumerate([('channel_count', 'intx', '1'),
                   ('samp_rate', 'eng_float', '2e6'), ('carrier_hz', 'eng_float', '915e6'),
                   ('tx_samples', 'intx', '256')])]
@@ -173,10 +173,11 @@ class blk(gr.sync_block):
         block('antenna', 'blocks_selector', {'type': 'complex', 'num_inputs': 'channel_count', 'num_outputs': '1',
               'input_index': '0', 'output_index': '0', 'enabled': 'True', 'vlen': '1'}, 270, 380),
         block('rx_spectrum', 'qtgui_freq_sink_x', {'type': 'complex', 'name': 'Processed RX: antenna 0', 'fftsize': '1024',
-              'fc': '0', 'bw': 'samp_rate', 'nconnections': '1', 'autoscale': 'True', 'grid': 'True'}, 550, 380),
+              'fc': '0', 'bw': 'samp_rate', 'nconnections': '1', 'autoscale': 'True', 'grid': 'True',
+              'gui_hint': '1,0,1,1'}, 850, 380),
         block('rx_time', 'qtgui_time_sink_x', {'type': 'complex', 'name': 'Processed RX I/Q volts', 'size': '1024',
               'srate': 'samp_rate', 'nconnections': '1', 'autoscale': 'True', 'grid': 'True', 'yunit': 'V',
-              'entags': 'False', 'label1': 'I', 'label2': 'Q'}, 850, 380)])
+              'entags': 'False', 'label1': 'I', 'label2': 'Q', 'gui_hint': '0,0,1,1'}, 850, 540)])
     connections = [['receive', '0', 'custom_dsp', '0'], ['custom_dsp', '0', 'measurements', '0'],
         ['custom_dsp', '0', 'split', '0'], ['antenna', '0', 'rx_spectrum', '0'], ['antenna', '0', 'rx_time', '0']]
     # Vector fanout is a compile-time GRC construct. Its connections are expanded
@@ -190,12 +191,12 @@ class blk(gr.sync_block):
             block('transmit', 'rfskill_tx', {}, 600, 580),
             block('tx_time', 'qtgui_time_sink_x', {'type': 'complex', 'name': 'TX normalized waveform', 'size': '256',
                 'srate': 'samp_rate', 'nconnections': '1', 'autoscale': 'True', 'grid': 'True',
-                'entags': 'False', 'label1': 'I', 'label2': 'Q'}, 850, 580)])
+                'entags': 'False', 'label1': 'I', 'label2': 'Q', 'gui_hint': '2,0,1,1'}, 850, 740)])
         connections.extend([['waveform', '0', 'finite_tx', '0'], ['finite_tx', '0', 'transmit', '0'], ['finite_tx', '0', 'tx_time', '0']])
     return {'options': {'parameters': {'id': 'skill_flowgraph', 'title': 'RF Skill — edit DSP, tap plots, export',
         'output_language': 'python', 'generate_options': 'qt_gui', 'run_options': 'run',
         'run_command': '{python} -u -m rf_skill_harness.companion preview {filename}'},
-        'states': {'coordinate': [0, 0], 'rotation': 0, 'state': 'enabled'}},
+        'states': {'coordinate': [20, 20], 'rotation': 0, 'state': 'enabled'}},
         'blocks': blocks, 'connections': connections, 'metadata': {'file_format': 1}}
 
 
