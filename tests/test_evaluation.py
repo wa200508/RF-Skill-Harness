@@ -14,12 +14,15 @@ def test_same_skill_handles_independent_collects_with_fresh_state_and_unchanged_
     pytest.importorskip('gnuradio')
     project = tmp_path / 'project'
     init_project(project)
+    (project / 'counter.py').write_text('calls = 0\n')
+    spec = json.loads((project / 'skill.json').read_text())
+    spec['files'].append('counter.py')
+    (project / 'skill.json').write_text(json.dumps(spec))
     (project / 'processor.py').write_text('''import numpy as np
-calls = 0
+import counter
 def process_window(iq, metadata, context):
-    global calls
-    calls += 1
-    return {'calls': calls, 'rms': float(np.sqrt(np.mean(abs(iq)**2)))}
+    counter.calls += 1
+    return {'calls': counter.calls, 'rms': float(np.sqrt(np.mean(abs(iq)**2)))}
 ''')
     runtime = json.loads((project / 'config/runtime.json').read_text())
     runtime['volts_per_count'] = {'rx0': .001}

@@ -2,6 +2,8 @@
 from hashlib import sha256
 import json
 from pathlib import Path
+import subprocess
+import sys
 
 from .catalog import discover_recordings
 from .paths import new_directory
@@ -33,7 +35,6 @@ def project_processor(workspace):
 
 
 def evaluate_project(workspace, recordings, output, *, start_window=0, stop_window=None):
-    from .runner import run
     project = Path(workspace).resolve()
     fingerprint = design_fingerprint(project)
     processor = project_processor(project)
@@ -46,10 +47,21 @@ def evaluate_project(workspace, recordings, output, *, start_window=0, stop_wind
         for index, (label, path) in enumerate(captures.items()):
             row = {'label': label, 'recording': str(path), 'results': f'capture-{index:03d}'}
             summary['captures'].append(row)
-            # run() loads a fresh callable for each collect; state never leaks
-            # from a training/development collect into an independent test.
-            row.update(run(path, root / row['results'], processor=processor,
-                           start_window=start_window, stop_window=stop_window))
+            # Process isolation also resets state in imported DSP helpers and
+            # native GNU Radio modules, not just the top-level Python callable.
+            arguments = [sys.executable, '-m', 'rf_skill_harness', 'run', str(path),
+                '--processor', processor, '--output', str(root / row['results']),
+                '--start-window', str(start_window)]
+            if stop_window is not None:
+                arguments += ['--stop-window', str(stop_window)]
+            row['log'] = f'capture-{index:03d}.log'
+            with (root / row['log']).open('w') as log:
+                completed = subprocess.run(arguments, stdout=log, stderr=subprocess.STDOUT)
+            status = root / row['results'] / 'run.json'
+            if status.is_file():
+                row.update(json.loads(status.read_text()))
+            if completed.returncode or row.get('status') != 'complete':
+                raise RuntimeError(f"Collect {label} failed; see {root / row['log']}")
             if design_fingerprint(project) != fingerprint:
                 raise RuntimeError('The skill design changed during evaluation')
         summary['status'] = 'complete'
