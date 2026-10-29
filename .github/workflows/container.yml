@@ -1,7 +1,7 @@
 name: Qualify GNU Radio RF skill harness
 on:
   push:
-    branches: [main, feature/gnuradio-companion]
+    branches: [main, feature/gnuradio-companion, feature/gnuradio-world]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -10,7 +10,7 @@ concurrency:
   group: rf-skill-harness-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  companion-browser:
+  gnuradio-world:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -22,23 +22,23 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.companion
+          file: Dockerfile.world
           load: true
-          tags: rf-companion-browser:test
+          tags: rf-world:test
           build-args: SOURCE_REVISION=${{ github.sha }}
-          cache-from: type=gha,scope=companion-browser
-          cache-to: type=gha,mode=max,scope=companion-browser
+          cache-from: type=gha,scope=gnuradio-world
+          cache-to: type=gha,mode=max,scope=gnuradio-world
       - name: Install the browser test client
         run: |
           python -m pip install numpy playwright
           python -m playwright install --with-deps chromium
-      - name: Edit, preview RX/TX, export and reconnect through Chromium and noVNC
-        run: python scripts/qualify_companion_browser.py --image rf-companion-browser:test --output "$RUNNER_TEMP/browser-qualification"
+      - name: Browser I/Q, Python DSP, RX/TX plots, capture switching and native export
+        run: python scripts/qualify_world.py --image rf-world:test --output "$RUNNER_TEMP/world-qualification"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: companion-browser-qualification
-          path: ${{ runner.temp }}/browser-qualification
+          name: gnuradio-world-qualification
+          path: ${{ runner.temp }}/world-qualification
   companion-native:
     runs-on: ubuntu-latest
     timeout-minutes: 25

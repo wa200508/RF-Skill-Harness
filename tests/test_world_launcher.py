@@ -12,7 +12,7 @@ import pytest
 
 @pytest.mark.parametrize('rootless', [False, True])
 @pytest.mark.parametrize('standalone', [False, True])
-def test_browser_launcher_uses_selected_python_loopback_readonly_captures_and_cleans_up(tmp_path, rootless, standalone):
+def test_world_launcher_uses_selected_python_loopback_readonly_captures_and_cleans_up(tmp_path, rootless, standalone):
     root = Path(__file__).resolve().parents[1]
     tools = tmp_path / 'bin'; tools.mkdir()
     log = tmp_path / 'docker.jsonl'
@@ -46,9 +46,9 @@ if sys.argv[1]=='stop' and pid.exists():
     selected = tools / 'chosen-python'; marker = tmp_path / 'python-used'
     selected.write_text(f"#!/bin/sh\nprintf selected > '{marker}'\nexec '{sys.executable}' \"$@\"\n")
     selected.chmod(0o755)
-    script = root / 'scripts/start_companion.sh'
+    script = root / 'scripts/start_world.sh'
     if standalone:
-        script_copy = tools / 'start_companion.sh'
+        script_copy = tools / 'start_world.sh'
         script_copy.write_bytes(script.read_bytes()); script = script_copy
         curl = tools / 'curl'
         curl.write_text('#!/usr/bin/env python3\nimport sys,shutil\nfrom pathlib import Path\n'
@@ -83,11 +83,11 @@ if sys.argv[1]=='stop' and pid.exists():
             process.kill(); process.wait()
     assert process.returncode == 130, errors
     assert marker.read_text() == 'selected'
-    assert f'http://127.0.0.1:{port}/vnc.html' in output
+    assert f'http://127.0.0.1:{port}/' in output
     calls = [json.loads(line) for line in log.read_text().splitlines()]
     run = next(c for c in calls if c[0] == 'run')
     assert run[run.index('--user')+1] == ('0:0' if rootless else f'{os.getuid()}:{os.getgid()}')
-    assert run[run.index('--publish')+1] == f'127.0.0.1:{port}:6080'
+    assert run[run.index('--publish')+1] == f'127.0.0.1:{port}:8090'
     assert '--privileged' not in run and '--gpus' not in run and '--device' not in run
     assert not any('/tmp/.X11-unix' in value for value in run)
     assert f'type=bind,src={workspace},dst=/workspace' in run

@@ -1,227 +1,159 @@
-# RF Skill Harness — GNU Radio Companion branch
+# RF Skill Harness — GNU Radio World
 
-Develop the skill in **GNU Radio Companion 3.10**, test the same flowgraph against
-replaceable I/Q collects, then export it behind the **native AMS-GRA RF MEL/UCI
-interface**. This experimental route lives on `feature/gnuradio-companion`;
-[main](https://github.com/wa200508/RF-Skill-Harness/tree/main) keeps the
-[JupyterLab workbench](docs/jupyter-workbench.md).
+Design and run an RF skill in **[GNU Radio World](https://github.com/777arc/gnuradio-world)**,
+using its browser flowgraph editor, Python blocks and WebAssembly DSP. Select
+replaceable I/Q collects for development, then export the edited design through
+our **native AMS-GRA RF MEL/UCI adapter**.
 
-The browser workbench runs the real Companion editor and RF tools panel:
+This route lives on **`feature/gnuradio-world`**. The browser renders the editor
+and plots directly. There is no desktop streaming, VNC, X11 forwarding or host
+GNU Radio/Qt installation. [Main](https://github.com/wa200508/RF-Skill-Harness/tree/main)
+keeps the independent JupyterLab workflow.
 
-![Companion and RF tools connected through the noVNC browser client](docs/images/companion-browser-desktop.png)
+![GNU Radio World processing recorded RX I/Q and a generated TX waveform](docs/images/world-plots.png)
 
-<details>
-<summary>See browser-rendered RX/TX plots and a saved native export</summary>
+## Launch
 
-These are actual Chromium/noVNC screenshots processing the bundled **synthetic
-radar protocol fixture** and generating the starter TX tone.
+Requirements: Docker, Python 3.10+, curl, and a recent Chromium or Firefox browser.
+From this branch:
 
-![RX waveform, spectrum and TX waveform rendered inside the browser desktop](docs/images/companion-browser-plots.png)
+```bash
+git switch feature/gnuradio-world
+git pull
+bash scripts/start_world.sh --workspace "$PWD/my-world-skill" --transmit
+```
 
-The export below was created through the browser GUI and saved in the persistent
-workspace. Example calibration/power settings are interface-fixture values.
+Open **http://127.0.0.1:8090/** when the launcher reports ready. The script pulls
+and verifies `ghcr.io/wa200508/airsim-rf:rf-skill-gnuradio-world`, mounts your project,
+and starts the HTTP server. The active Python virtual environment or
+`RF_HARNESS_PYTHON` is honored. Rootless Docker is supported. There are no host
+X sockets, GPU devices or privileged containers to configure.
 
-![Completed native TX/RX export in the browser workbench](docs/images/companion-browser-export.png)
+Without a checkout:
 
-</details>
+```bash
+curl -fsSL https://raw.githubusercontent.com/wa200508/RF-Skill-Harness/feature/gnuradio-world/scripts/start_world.sh \
+  -o start_world.sh
+bash start_world.sh --workspace "$PWD/my-world-skill" --transmit
+```
+
+Use a **new workspace** for this interface; existing Companion projects are left
+intact. `scripts/start_companion.sh` now forwards to this launcher. `--transmit`
+adds a TX chain when creating a project; omit it for an RX-only skill.
+
+Add one or several collects:
+
+```bash
+bash scripts/start_world.sh --workspace "$PWD/my-world-skill" \
+  --recordings /path/to/first/iq --recordings /path/to/another/iq
+```
+
+Captures are read-only, and only receiver archives are mounted. Mission truth
+stays outside the skill. Save edits with **RF Skill → Save skill**; your project
+and **`my-world-skill/exports/`** persist on the host. Reloading reopens the saved
+design; it stops the current browser DSP run. Closing the tab leaves the HTTP
+server running. Ctrl+C stops/removes the launcher’s container. `--port 8091`
+starts another instance. For a remote machine use
+`ssh -L 8090:127.0.0.1:8090 user@server`; browser WebAssembly threads require a
+secure context such as localhost or HTTPS. The service is bound to host loopback
+and is intended for local/SSH access.
+
+For a source build, append `--build --image rf-world:local`. This compiles the
+upstream editor with our extension and installs a hash-verified, pinned upstream
+WebAssembly runtime. The image serves all DSP/Pyodide files locally; opening the
+workbench does not download its runtime from the public World site.
+
+## Design, run, inspect, revise
+
+1. Edit **`skill.grc` on the GNU Radio World canvas**. Insert normal GNU Radio DSP
+   between the RF receive File Source and the measurement Null Sink. Those two
+   blocks are declared RF endpoints, not files copied into your deployed skill.
+   Keep their instance names and the **`RF_RECEIVE`** placeholder.
+2. Double-click an **Embedded Python Block**. Edit its Code in the built-in
+   browser editor, then use its Python/introspection controls to update ports and
+   parameters. NumPy is included; SciPy is available when imported. No external
+   text editor is required. The starter has an editable gain block.
+3. Tap processing stages with the existing **QT GUI time, spectrum, waterfall,
+   constellation, vector or matrix sinks**. World draws them inside the browser.
+   Select an antenna before wiring coherent vector streams to scalar sinks.
+4. Choose a **test capture and acquisition window** in the RF Skill toolbar, then
+   **Run window**. Upstream may ask **Run anyway** because a finite offline window
+   deliberately runs without real-time throttling. The **QT GUI** tab displays
+   the results. Switch back to **Editor**, revise and rerun.
+5. Choose another capture and test the **same skill**. Selection changes a replay
+   binding, never the saved design or deployment configuration. Incompatible
+   channel counts are rejected rather than quietly dropping antennas.
+6. **Project files** edits `processor.py`, `report.py` and deployment `config/`
+   directly in the browser. `processor.py` receives a complete processed window
+   and returns measurements in the native skill. **Native test** runs that edited
+   graph and processor in a fresh process against the selected window, without
+   opening desktop plots. Use it to compare browser experiments to deployment.
+
+Browser Python blocks receive **`RF_WINDOW`** and **`RF_CONTEXT`**: acquisition
+index, original timestamp, sample offset/count, channel order, sample rate,
+carrier, voltage units, receiver/antenna configuration and acquisition/radar
+metadata. The native adapter provides the same names. The browser API represents
+large nanosecond integers as decimal strings to preserve every bit; block-level
+`timestamp_ns` and `first_timestamp_ns` are converted back to Python integers.
+Samples remain coherent `[sample, channel]` complex64 volts, interleaved only at
+the transport boundary. [Details and limits](docs/gnuradio-world.md).
+
+The screenshot above uses a **synthetic radar protocol fixture**, not a validated
+terrain or hardware measurement. Its TX tone is a graph-generated test waveform.
+
+## Export an independent RF skill
+
+Configure actual provider, aperture/channel mapping, acquisition parameters,
+**volts-per-count calibration** and UCI/OWP identity in `config/`. For TX also
+configure supported power, finite waveform length and guards. These settings are
+independent of the selected test recording. The initial `report.py` returns no
+detections; implement the report mapping for your application.
+
+Click **Export AMS-GRA…**, select any plotting sinks to retain, then **Export
+skill**. The default removes plots and unused plot branches. RX measurement and
+TX chains stay mandatory. Retained plots require a display on the deployment
+machine; leave them unchecked for a headless skill.
+
+The package contains the compiled edited graph, custom Python DSP, declared
+source helpers, deployment configuration, native C++ RF MEL/UCI host and Dockerfile.
+It excludes recordings, replay bindings, the browser/editor and the harness.
+RF MEL callbacks supply new I/Q; the skill has no knowledge of the simulation
+or the dataset used while designing it.
 
 ```mermaid
 flowchart LR
-  B["Browser / noVNC"] <-->|Display and input| G
-  G["Companion: skill.grc + custom Python blocks"] --> C["GNU Radio compiler"]
-  D["Selectable test collects: I/Q + receiver metadata"] --> P["Preview / multi-collect evaluation"]
-  C --> P
-  P --> V["Qt plots tapped at DSP stages"]
-  G --> E["Export dialog: select plots to retain"]
-  E --> S["Generated graph + declared DSP + native host"]
-  RX["RF MEL receiver callbacks"] --> S
-  S --> TX["RF MEL TX waveform + TX/guard/RX schedule"]
-  S --> U["UCI reports over OWP"]
+  CAP["Selected receiver archive<br/>I/Q + original acquisition metadata"] --> BIND["Session-only input binding"]
+  EDIT["GNU Radio World<br/>flowgraph + Embedded Python"] --> WASM["Browser WebAssembly DSP"]
+  BIND --> WASM
+  WASM --> PLOTS["Browser plots tapped at processing stages"]
+  EDIT --> EXPORT["Native compiler + export selection<br/>remove optional visualization branches"]
+  EXPORT --> SKILL["Independent RF skill<br/>edited DSP + processor + report mapping"]
+  MEL["RF MEL RX callbacks<br/>new acquisition + metadata"] --> SKILL
+  SKILL --> TX["RF MEL TX waveform + TX/guard/RX schedule"]
+  SKILL --> UCI["UCI reports via OWP"]
 ```
 
-## Start Companion in your browser
+The current profile uses independent finite acquisition windows. Native streaming
+history resets per window. TX is a finite graph-generated waveform, repeated via
+RF MEL with a **nonoverlapping TX → guard → RX → guard schedule**. Adaptive TX,
+simultaneous TX/RX and a cross-window streaming-state adapter are future work.
+Browser hardware TX support in upstream World is separate from RF MEL deployment.
 
-The default deployment runs **Companion, the RF tools panel, the code editor and
-Qt plots inside a server container**. noVNC carries its desktop to the browser;
-GTK, Qt, X11 and Mesa are installed in the image. Graphics use **server-side
-software OpenGL**. The host needs Docker, Python 3.10+, curl and a browser; it
-needs no GNU Radio installation, GPU, display server or X11 forwarding.
+World and desktop GNU Radio have different supported-block sets and Python
+runtimes. Browser-only JavaScript/WebUSB blocks cannot be exported by this
+adapter. Missing native blocks and validation failures are reported explicitly.
+**Export is not AMS-GRA certification**; qualify against the actual provider,
+calibration and UCI schema. See [native interface details](docs/native-export.md).
 
-From this branch's checkout:
+## Development and references
 
-```bash
-bash scripts/start_companion.sh --workspace "$PWD/my-rf-skill" --transmit
-```
+- [GNU Radio World integration, code map, validation and limitations](docs/gnuradio-world.md)
+- [Native AMS-GRA RF MEL/UCI export](docs/native-export.md)
+- [I/Q format and replay](docs/metadata.md)
+- [JupyterLab workbench on main](https://github.com/wa200508/RF-Skill-Harness/tree/main)
+- Upstream [GNU Radio World](https://github.com/777arc/gnuradio-world),
+  [Embedded Python support](https://github.com/777arc/gnuradio-world/blob/96e805fb694e3e797b72ebfad30232c732e3f257/docs/embedded-python.md),
+  [recording sources](https://github.com/777arc/gnuradio-world/blob/96e805fb694e3e797b72ebfad30232c732e3f257/docs/recording-viewer.md)
 
-Or download just the launcher:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/wa200508/RF-Skill-Harness/feature/gnuradio-companion/scripts/start_companion.sh \
-  -o start_companion.sh
-bash start_companion.sh --workspace "$PWD/my-rf-skill" --transmit
-```
-
-Open **http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale** once the launcher
-reports **Graphics ready**. It pulls/verifies the dedicated public image
-`ghcr.io/wa200508/airsim-rf:rf-skill-companion-browser`. The standalone launcher
-fetches its small stdlib host helper pinned to that image's source revision.
-The active Python virtual environment or `RF_HARNESS_PYTHON` is honored.
-
-The service checks a real Qt OpenGL context, the Mesa software renderer, GTK and
-both application windows before declaring readiness. It publishes HTTP/WebSocket
-traffic on host loopback, including rootless Docker; raw VNC and X11 stay inside
-the container. No privileged mode, GPU device or host X socket is used.
-
-Add captures without changing the skill:
-
-```bash
-bash scripts/start_companion.sh --workspace "$PWD/my-rf-skill" \
-  --recordings /path/to/collect-one/iq --recordings /path/to/collect-two/iq
-```
-
-Captures are mounted **read-only**. Project changes, saved experiments and
-**`my-rf-skill/exports/`** remain on the host. Use **Edit project file…** (Ctrl+O)
-in the tools panel to edit Python/configuration files in the browser. Embedded
-Python Blocks also open in the included Mousepad editor. Ctrl+Enter previews;
-Ctrl+Shift+E opens the native export dialog. Maximize plot windows for more room.
-
-Closing/reloading the browser preserves the running desktop. **Ctrl+C in the
-launcher stops and removes its container**; restart the same command to resume
-the saved project. `--port 6081` starts a second desktop. For a remote Linux
-server, forward the service with `ssh -L 6080:127.0.0.1:6080 user@server` and use
-the same local browser URL. The default service is intended for loopback/SSH
-access, not direct unauthenticated public hosting.
-
-For a local source build: add `--build --image rf-companion:local`. The optional
-[native desktop route](docs/companion.md#optional-native-desktop) remains available.
-
-## Design → test → inspect → revise
-
-1. Edit **`skill.grc` in Companion**. The RF Receive Endpoint supplies simultaneous
-   antenna-voltage vectors. Insert standard GNU Radio DSP or custom blocks before
-   RF Window Measurements. The starter includes an editable Embedded Python gain.
-2. Use **Embedded Python Block → Open in Editor** for custom streaming DSP.
-   Companion discovers its ports and parameters. Configure your text editor in
-   Companion preferences. Use `processor.py` for complete-window array processing
-   and measurement output, and `report.py` for the explicit UCI report mapping.
-3. Add **Qt GUI time, frequency, waterfall, constellation, vector or matrix sinks**
-   at the stages you want to inspect. Plots are branch taps. The starter shows
-   time/spectrum after custom DSP and, for TX projects, the TX waveform. Select an
-   antenna before connecting coherent vectors to scalar plot sinks.
-4. **Save**, select an external capture and window in the tools panel, then
-   **Preview saved graph**. Companion's normal Run action uses the same selected
-   capture. Processing runs once; the completed plots remain open until closed.
-   Measurements appear in the panel's log.
-5. Select a different collect and rerun the **same skill**. No new project, I/Q
-   copy or export is needed. Preview compiles the saved graph into temporary files.
-
-For starter data, generate synthetic protocol fixtures and use **Add capture…**:
-
-```bash
-rf-harness demo --kind radar --output ./captures/development
-rf-harness demo --kind radar --output ./captures/held-out
-```
-
-These fixtures test the interface; they are not scene/hardware validation. They
-share a deterministic seed; use genuinely different real collects for held-out
-validation. The starter graph declares one antenna channel. For an array design,
-change `channel_count`, the Embedded Python default vector size, and deployment
-channel configuration together. Incompatible channel counts fail explicitly.
-Sample rate, carrier, antenna calibration, timestamps and radar-gate metadata
-come from each collect. Your algorithm must use them or reject unsupported modes.
-
-Evaluate one saved graph on several complete collects without opening plots:
-
-```bash
-python -m rf_skill_harness.companion evaluate ./my-rf-skill \
-  --recordings ./captures/development --recordings ./captures/held-out \
-  --output ./evaluations/comparison-1
-```
-
-The graph is compiled once. Each collect starts fresh and has its own
-`results.jsonl`, `context.json` and `run.json`. `evaluation.json` records design
-hashes and per-collect timings. The source project is unchanged.
-
-## Export the RF skill
-
-Configure deployment in **`config/`**, independently of test data: RF MEL provider,
-stream/channel mapping, calibrated volts per signed integer count, acquisition
-settings and OWP identity/topics. Calibration starts unset; export requires an
-explicit value. TX also needs provider-supported power, attenuation, guard and
-waveform sample count. `report.py` initially reports no detections.
-
-Click **Refresh from saved graph** in the tools panel. Its export list has a
-checkbox per active Qt plot. **Unchecked plots and their unused branches are
-removed**; RX measurements and TX chains stay mandatory. Check a plot to retain
-it, then **Export native AMS-GRA RF skill…** to a new directory. Retained Qt plots
-need a deployment display; the default headless export suits an unattended
-service. Equivalent CLI:
-
-```bash
-python -m rf_skill_harness.companion export ./my-rf-skill --output ./exports/my-rf-skill
-# Optional: add --keep-plot rx_spectrum to retain that plot.
-cd exports/my-rf-skill
-docker build -t my-rf-skill:local .
-docker build --target test -t my-rf-skill:test .
-```
-
-The package includes the **compiled edited flowgraph**, generated Embedded Python
-modules, declared DSP/helper files, sanitized `source/skill.grc`, source hashes,
-deployment configuration, native C++ host and Dockerfile. It uses the OS GNU
-Radio package. No recording catalog, selected input path, I/Q, experiments,
-notebooks, replay reader or harness dependency enters the export. Deployment
-obtains new samples from RF MEL at the same DSP boundary used by replay.
-
-The native host loads provider factories, requests a Virtual Aperture and jobs,
-receives `ProductRxEndpoint` callbacks, applies calibration and publishes UCI
-reports through OWP. **Export is not certification.** Qualify it against your
-actual starter-kit provider, hardware calibration and UCI schema.
-
-## Transmit and execution profile
-
-With `--transmit`, standard sources/modulators and custom Python blocks define
-TX in the graph. The starter uses a small complex tone. Put **Head(`tx_samples`)
-before the TX endpoint and its plot taps** so execution is finite. TX components
-are normalized full scale in `[-1, 1]`; RX remains volts. Over-range TX samples
-fail instead of being silently clipped.
-
-The native profile generates a **fixed arbitrary waveform** from that branch,
-quantizes to ComplexINT16, and repeats it using RF MEL `WaveformBuffer` and
-`TransmitEvent`. Each sequence is **TX → guard → RX → guard** with no overlapping
-events. The provider must support the waveform modulation, TX/RX groups and power
-mode. Changing TX while replaying a recording cannot change its already-recorded
-echo; closed-loop validation needs a live simulator or radio provider.
-
-This first profile executes **independent finite windows**. Native streaming
-block history resets at each window; RX DSP must preserve sample count, channel
-order, volts and acquisition time. Dynamic waveform streaming, feedback-dependent
-TX, continuous block history and simultaneous TX/RX need additional adapters.
-These capabilities are not claimed here. [Detailed boundaries](docs/companion.md).
-
-## Code, evidence and references
-
-| Location | Purpose |
-| --- | --- |
-| `src/rf_skill_harness/companion.py` | Creation, GRC validation/code generation, plot pruning, preview/evaluation/export. |
-| `src/rf_skill_harness/companion_gui.py` | Capture/window selector and per-plot export dialog. |
-| `src/rf_skill_harness/companion_blocks/` | OOT YAML definitions for RF receive, measurements and TX endpoints. |
-| `src/rf_skill_harness/companion_runtime.py` | Portable `skill_io.py` acquisition binding and GNU Radio execution. |
-| `src/rf_skill_harness/native/` | RF MEL C++ host, calibration, native TX/RX scheduling and UCI/OWP reporting. |
-| [Companion findings and validation](docs/companion.md) | Upstream sources, extension choices and tested limits. |
-| [Native export guide](docs/native-export.md) | Provider and schema qualification. |
-| [Receiver metadata](docs/metadata.md) | Voltage units, channels, acquisition tags and radar gates. |
-
-Validated with actual GNU Radio **3.10.9.2**: custom Python edits reach the exported
-DSP; selected plots run and unselected branches disappear; one skill evaluates
-multiple collects; export needs no selected I/Q. A native interface fixture also
-verified actual TX samples and non-overlapping TX/RX events. The full suite
-passed **78 tests**. [Validation scope](docs/companion.md#validation).
-
-Reused upstream features:
-[Embedded Python Blocks](https://wiki.gnuradio.org/index.php/Embedded_Python_Block),
-[out-of-tree modules](https://wiki.gnuradio.org/index.php/OutOfTreeModules),
-[Qt sinks](https://github.com/gnuradio/gnuradio/tree/v3.10.12.0/gr-qtgui/grc),
-and the pinned [AMS-GRA RF MEL interface](https://gitlab.com/open-arsenal/ams-gra/hello-world-sk/interfaces/rf-mel/-/tree/a8161fa965b37879e2112533a896f210f721a02a).
-
-Harness source is Apache-2.0. GNU Radio and generated GNU Radio code retain their
-upstream GPL obligations; review licensing of a combined distributed skill.
+Harness/backend source is Apache-2.0. GNU Radio World and the editor extension
+are GPL-3.0-or-later; see [license/source notices](world/NOTICE.md).
