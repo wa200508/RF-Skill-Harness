@@ -10,6 +10,35 @@ concurrency:
   group: rf-skill-harness-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  companion-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.companion
+          load: true
+          tags: rf-companion-browser:test
+          build-args: SOURCE_REVISION=${{ github.sha }}
+          cache-from: type=gha,scope=companion-browser
+          cache-to: type=gha,mode=max,scope=companion-browser
+      - name: Install the browser test client
+        run: |
+          python -m pip install numpy playwright
+          python -m playwright install --with-deps chromium
+      - name: Edit, preview RX/TX, export and reconnect through Chromium and noVNC
+        run: python scripts/qualify_companion_browser.py --image rf-companion-browser:test --output "$RUNNER_TEMP/browser-qualification"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: companion-browser-qualification
+          path: ${{ runner.temp }}/browser-qualification
   companion-native:
     runs-on: ubuntu-latest
     timeout-minutes: 25

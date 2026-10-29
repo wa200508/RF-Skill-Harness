@@ -1,7 +1,8 @@
 # Companion interface and native export
 
 This branch uses GNU Radio Companion as the design surface. The editor stays
-upstream; our library adds RF endpoints and a small tools panel.
+upstream; our library adds RF endpoints and a small tools panel. The default
+deployment serves that desktop through a browser.
 
 ## Existing features and extensions
 
@@ -153,3 +154,62 @@ offscreen Qt. They show the stock starter, a real successful export with one
 selected plot, and processing of the synthetic radar protocol fixture. The
 example calibration and power settings were fixture values. No screenshots
 were composited and no hardware or live provider is implied by those images.
+
+
+## Browser server deployment
+
+`Dockerfile.companion` contains GNU Radio, GTK3, Qt5, Mesa llvmpipe, Xvfb,
+Openbox, Mousepad, x11vnc, websockify and [noVNC](https://github.com/novnc/noVNC).
+The browser is a display/input client; Companion and RF processing execute on the
+server. This preserves the existing editor and Qt plots without depending on
+host GNU Radio graphics libraries. It is not a JavaScript rewrite of Companion.
+
+`companion_server.py` supervises the virtual display, window manager, RF panel,
+Companion editor, VNC endpoint and browser endpoint. Startup creates and binds a
+real Qt OpenGL context, checks the software renderer with `glxinfo`, loads GTK,
+then waits for both application windows and the editor's completed graph load.
+`/health.json` is published only after those checks. A per-launch instance ID
+prevents an unrelated/stale service from satisfying the host launcher's check.
+A graphics or application failure stops the service with its relevant log.
+
+The host launcher only uses Python's standard library. It pulls the image,
+selects the rootful host UID/GID or rootless container-root mapping, mounts the
+project writable and receiver captures read-only, and publishes port 6080 on
+127.0.0.1. Neither X11/VNC ports nor a Docker socket enter the host interface.
+Temporary HOME, display state and caches stay inside the container. SIGINT or
+SIGTERM stops/removes the launcher's own container; project files persist.
+
+Exports default to `/workspace/exports/<skill-name>` inside the persistent
+workspace. The browser's **Edit project file** action opens the included editor,
+so processor, reporter, deployment configuration and custom Python block code
+can all be edited without host GUI tools. Browser reload/disconnect leaves the
+same desktop running; stopping the run script ends it. A remote user can use
+SSH port forwarding. Direct public hosting needs a separate authenticated TLS
+front end; the shipped launcher binds only to loopback.
+
+The image is published in airsim-rf's established public GHCR package as
+`rf-skill-companion-browser`, with immutable `rf-skill-companion-browser-sha-<source>`
+tags. Only this harness repository is built; the image has no AirSim/Sionna
+runtime dependency. The release workflow pins the harness source and performs a
+real Chromium/noVNC qualification before publishing, then verifies anonymous pull.
+
+`qualify_companion_browser.py` connects Chromium, previews actual RX/TX Qt plots,
+edits and saves a host-visible file through browser key events, exports a native
+skill through the GUI, reconnects, checks cleanup, then restarts the same project.
+Its screenshots and summary are uploaded by CI. The host launcher additionally
+has rootful/rootless mapping and standalone/virtual-environment regression tests.
+The synthetic radar fixture is an interface test, not a physical radar collect.
+
+## Optional native desktop
+
+The browser server is the normal route. For developers who deliberately want a
+local desktop, Ubuntu 24.04 can install the matching libraries and use the
+explicit native launcher:
+
+```bash
+sudo apt-get install gnuradio gir1.2-gtk-3.0 python3-gi-cairo python3-venv python3-pip
+python3 -m venv --system-site-packages .venv
+source .venv/bin/activate
+python -m pip install -e .
+bash scripts/start_companion_native.sh --workspace "$PWD/my-rf-skill" --transmit
+```

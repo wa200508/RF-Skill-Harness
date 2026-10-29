@@ -46,6 +46,8 @@ class SkillPanel(QtWidgets.QWidget):
         preview = QtWidgets.QPushButton('Preview saved graph')
         browse.clicked.connect(self.browse_capture)
         preview.clicked.connect(self.preview)
+        preview.setShortcut('Ctrl+Return')
+        preview.setToolTip('Preview the saved graph (Ctrl+Enter)')
         buttons.addWidget(browse); buttons.addWidget(preview)
         layout.addLayout(buttons)
         self.preview_button = preview
@@ -67,10 +69,16 @@ class SkillPanel(QtWidgets.QWidget):
         layout.addWidget(explanation)
         self.export_button = QtWidgets.QPushButton('Export native AMS-GRA RF skill…')
         self.export_button.clicked.connect(self.export)
+        self.export_button.setShortcut('Ctrl+Shift+E')
         layout.addWidget(self.export_button)
         self.log = QtWidgets.QPlainTextEdit()
         self.log.setReadOnly(True)
         layout.addWidget(self.log)
+        if os.environ.get('RF_COMPANION_BROWSER') == '1':
+            edit = QtWidgets.QPushButton('Edit project file… (Ctrl+O)')
+            edit.setShortcut('Ctrl+O')
+            edit.clicked.connect(self.edit_project_file)
+            layout.addWidget(edit)
         self.process = None
         self.editor = None
         self.capture.currentIndexChanged.connect(self.select_capture)
@@ -101,6 +109,12 @@ class SkillPanel(QtWidgets.QWidget):
         if path:
             self.capture.addItem(Path(path).name, path)
             self.capture.setCurrentIndex(self.capture.count() - 1)
+
+    def edit_project_file(self):
+        filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Edit project file', str(self.root),
+            'Project files (*.py *.json *.grc *.txt);;All files (*)')[0]
+        if filename:
+            subprocess.Popen(['mousepad', '--disable-server', filename], cwd=self.root)
 
     def save_selection(self):
         if self.capture.currentData():
@@ -159,7 +173,10 @@ class SkillPanel(QtWidgets.QWidget):
 
     def export(self):
         self.refresh_plots()
-        destination = QtWidgets.QFileDialog.getSaveFileName(self, 'New export directory', str(self.root.parent / (self.root.name + '-export')))[0]
+        exports = self.root / 'exports'
+        exports.mkdir(exist_ok=True)
+        name = json.loads((self.root / 'skill.json').read_text())['name']
+        destination = QtWidgets.QFileDialog.getSaveFileName(self, 'New export directory', str(exports / name))[0]
         if destination:
             arguments = ['export', str(self.root), '--output', destination]
             for name in self.selected_plots():
@@ -181,6 +198,7 @@ def main(argv=None):
     parser.add_argument('--workspace', type=Path, required=True)
     parser.add_argument('--name', default='my-rf-skill')
     parser.add_argument('--transmit', action='store_true', help='Include TX in a NEW project')
+    parser.add_argument('--no-editor', action='store_true', help='The browser service supervises the editor separately')
     args = parser.parse_args(argv)
     root = args.workspace.expanduser().resolve()
     if not (root / 'skill.json').is_file():
@@ -188,7 +206,7 @@ def main(argv=None):
     if not (root / 'skill.grc').is_file():
         parser.error('This is not a Companion skill project; use a new workspace for this branch')
     application = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
-    panel = SkillPanel(root)
+    panel = SkillPanel(root, start_editor=not args.no_editor)
     panel.show()
     return application.exec_()
 

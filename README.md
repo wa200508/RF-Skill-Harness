@@ -6,7 +6,8 @@ interface**. This experimental route lives on `feature/gnuradio-companion`;
 [main](https://github.com/wa200508/RF-Skill-Harness/tree/main) keeps the
 [JupyterLab workbench](docs/jupyter-workbench.md).
 
-Stock Companion with the RF endpoint library, custom Python DSP and plot taps:
+Companion with the RF endpoint library, custom Python DSP and plot taps (native
+editor view; the browser server presents this same desktop):
 
 ![Live GNU Radio Companion editor with the RX and TX skill graph](docs/images/companion-editor.png)
 
@@ -38,31 +39,61 @@ flowchart LR
   S --> U["UCI reports over OWP"]
 ```
 
-## Start Companion
+## Start Companion in your browser
 
-This branch uses the **native Linux desktop** for the editor and Qt plot windows.
-The exported skill is containerized. Install GNU Radio through the OS so its
-Python bindings, Companion, Qt sinks and scheduler match:
+The default deployment runs **Companion, the RF tools panel, the code editor and
+Qt plots inside a server container**. noVNC carries its desktop to the browser;
+GTK, Qt, X11 and Mesa are installed in the image. Graphics use **server-side
+software OpenGL**. The host needs Docker, Python 3.10+, curl and a browser; it
+needs no GNU Radio installation, GPU, display server or X11 forwarding.
+
+From this branch's checkout:
 
 ```bash
-# Ubuntu 24.04 / Debian with GNU Radio 3.10
-sudo apt-get install gnuradio gir1.2-gtk-3.0 python3-gi-cairo python3-venv python3-pip
-git clone --branch feature/gnuradio-companion https://github.com/wa200508/RF-Skill-Harness.git
-cd RF-Skill-Harness
-python3 -m venv --system-site-packages .venv
-source .venv/bin/activate
-python -m pip install -e .
-
-# No recording required. Include --transmit for a new RX+TX project.
 bash scripts/start_companion.sh --workspace "$PWD/my-rf-skill" --transmit
 ```
 
-The launcher honors the active virtual environment or `RF_HARNESS_PYTHON`.
-It opens **stock Companion** and a separate **RF Skill tools panel**. The block
-library uses `GRC_BLOCKS_PATH`; there is no patched or forked editor. Restart with
-the same workspace to continue. Use a new workspace for this interface; existing
-Jupyter projects stay separate. This branch does not yet publish a prebuilt
-Companion desktop image.
+Or download just the launcher:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wa200508/RF-Skill-Harness/feature/gnuradio-companion/scripts/start_companion.sh \
+  -o start_companion.sh
+bash start_companion.sh --workspace "$PWD/my-rf-skill" --transmit
+```
+
+Open **http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale** once the launcher
+reports **Graphics ready**. It pulls/verifies the dedicated public image
+`ghcr.io/wa200508/airsim-rf:rf-skill-companion-browser`. The standalone launcher
+fetches its small stdlib host helper pinned to that image's source revision.
+The active Python virtual environment or `RF_HARNESS_PYTHON` is honored.
+
+The service checks a real Qt OpenGL context, the Mesa software renderer, GTK and
+both application windows before declaring readiness. It publishes HTTP/WebSocket
+traffic on host loopback, including rootless Docker; raw VNC and X11 stay inside
+the container. No privileged mode, GPU device or host X socket is used.
+
+Add captures without changing the skill:
+
+```bash
+bash scripts/start_companion.sh --workspace "$PWD/my-rf-skill" \
+  --recordings /path/to/collect-one/iq --recordings /path/to/collect-two/iq
+```
+
+Captures are mounted **read-only**. Project changes, saved experiments and
+**`my-rf-skill/exports/`** remain on the host. Use **Edit project file…** (Ctrl+O)
+in the tools panel to edit Python/configuration files in the browser. Embedded
+Python Blocks also open in the included Mousepad editor. Ctrl+Enter previews;
+Ctrl+Shift+E opens the native export dialog. Maximize plot windows for more room.
+
+Closing/reloading the browser preserves the running desktop. **Ctrl+C in the
+launcher stops and removes its container**; restart the same command to resume
+the saved project. `--port 6081` starts a second desktop. For a remote Linux
+server, forward the service with `ssh -L 6080:127.0.0.1:6080 user@server` and use
+the same local browser URL. The default service is intended for loopback/SSH
+access, not direct unauthenticated public hosting.
+
+For a local source build: add `--build --image rf-companion:local`. The optional
+[native desktop route](docs/companion.md#optional-native-desktop) remains available.
 
 ## Design → test → inspect → revise
 
