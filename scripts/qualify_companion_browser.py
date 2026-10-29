@@ -99,7 +99,7 @@ def main():
                     execute('wmctrl', '-ia', tools_id)
                     click(1740, 60)
                 # Actual browser mouse input starts the selected window's DSP.
-                focus_tools(); page.keyboard.press('Control+Return')
+                focus_tools(); page.keyboard.press('Control+Enter')
                 listing = wait_for(lambda: (v if 'completed window' in (v := windows()) else None), 'Qt RX/TX plots')
                 preview_id = next(v.split()[0] for v in listing.splitlines() if 'completed window' in v)
                 execute('wmctrl', '-ir', preview_id, '-e', '0,250,0,1120,1000')
@@ -111,7 +111,7 @@ def main():
                 focus_tools(); page.keyboard.press('Control+o')
                 wait_for(lambda: 'Edit project file' in windows(), 'project file picker')
                 page.keyboard.press('Control+l'); page.keyboard.type('/workspace/browser-edit.txt', delay=15)
-                page.keyboard.press('Return')
+                page.keyboard.press('Enter')
                 listing = wait_for(lambda: (v if 'browser-edit.txt' in (v := windows()) else None), 'text editor')
                 editor_id = next(v.split()[0] for v in listing.splitlines() if 'browser-edit.txt' in v)
                 execute('wmctrl', '-ir', editor_id, '-e', '0,200,150,1000,700')
@@ -128,7 +128,7 @@ def main():
                 path.write_text(json.dumps(config))
                 focus_tools(); page.keyboard.press('Control+Shift+e')
                 wait_for(lambda: 'New export directory' in windows(), 'export directory dialog')
-                page.keyboard.press('Return')
+                page.keyboard.press('Enter')
                 exported = workspace / 'exports/my-rf-skill/export-manifest.json'
                 wait_for(exported.is_file, 'persistent native export')
                 manifest = json.loads(exported.read_text())
