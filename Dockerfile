@@ -30,7 +30,7 @@ RUN python3 -m venv --without-pip --system-site-packages /opt/rf-harness-venv
 ENV PATH="/opt/rf-harness-venv/bin:$PATH"
 RUN --mount=type=secret,id=proxy_ca,mode=0444 \
     if [ -f /run/secrets/proxy_ca ]; then export PIP_CERT=/run/secrets/proxy_ca; fi; \
-    python3 -c 'import subprocess,sys,tomllib; spec=tomllib.load(open("pyproject.toml", "rb")); subprocess.check_call([sys.executable,"-m","pip","install","--no-cache-dir","numpy<2",*spec["project"]["optional-dependencies"]["lab"]])' \
+    python3 -c 'import subprocess,sys,tomllib; spec=tomllib.load(open("pyproject.toml", "rb")); subprocess.check_call([sys.executable,"-m","pip","install","--no-cache-dir","numpy<2",*spec["project"]["dependencies"],*spec["project"]["optional-dependencies"]["lab"]])' \
     && groupadd --gid 10001 rf && useradd --uid 10001 --gid rf --create-home rf
 COPY src/ src/
 # grcc uses the distro interpreter; both it and the lab venv must see this wheel.

@@ -22,13 +22,13 @@ GNU Radio/Qt installation. The [optional JupyterLab workflow](docs/jupyter-workb
 
 ## Install locally (pip or uv)
 
-The [v0.2.0 release](https://github.com/wa200508/RF-Skill-Harness/releases/tag/v0.2.0)
+The [v0.3.0 release](https://github.com/wa200508/RF-Skill-Harness/releases/tag/v0.3.0)
 bundles the built browser editor and WebAssembly/Pyodide runtime:
 
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install \
-  https://github.com/wa200508/RF-Skill-Harness/releases/download/v0.2.0/rf_skill_harness-0.2.0-py3-none-any.whl
+  https://github.com/wa200508/RF-Skill-Harness/releases/download/v0.3.0/rf_skill_harness-0.3.0-py3-none-any.whl
 .venv/bin/rf-world serve --workspace ./my-rf-skill --transmit
 ```
 
@@ -130,6 +130,20 @@ the transport boundary. [Details and limits](docs/gnuradio-world.md).
 
 The screenshot above uses a **synthetic radar protocol fixture**, not a validated
 terrain or hardware measurement. Its TX tone is a graph-generated test waveform.
+
+## SigMF Viewer
+
+The **SigMF Viewer** tab adds [Brian Day's viewer](https://github.com/briday1/sigmf-viewer)
+alongside GNU Radio World. **View I/Q** opens the selected verified window. Choose
+a complex/float output in **Signal inspection tap**, set its actual output rate
+when needed, and click **Run tap** to inspect the processed samples. Finite runs
+open automatically; **Finish & view** finalizes a running tap.
+
+The original captures stay read-only. Exact SigMF snapshots and metadata persist
+under **`my-rf-skill/inspections/<id>/`** and stay outside the exported skill.
+[Viewer controls, sample units and code map](docs/sigmf-viewer.md).
+
+![Brian Day SigMF Viewer inside the GNU Radio World workbench](docs/images/sigmf-processed.png)
 
 ## Export an independent RF skill
 

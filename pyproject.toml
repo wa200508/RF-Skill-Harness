@@ -4,11 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rf-skill-harness"
-version = "0.2.0"
+version = "0.3.0"
 description = "GNU Radio harness for coherent recorded RF I/Q and receiver metadata"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0 AND GPL-3.0-or-later"}
-dependencies = ["numpy>=1.24", "PyYAML>=6"]
+dependencies = ["numpy>=1.24", "PyYAML>=6",
+  "sigmf-viewer @ https://github.com/briday1/sigmf-viewer/archive/3d4f90a3a8dbe59d005baeff57c4a3593489aec3.tar.gz",
+  "sigvue @ https://github.com/briday1/sigvue/archive/53c28586587ff6e0cff52775375d9c207a4ad761.tar.gz"]
 
 [project.optional-dependencies]
 lab = ["jupyterlab>=4.2,<5", "ipykernel>=6.29,<8", "matplotlib>=3.7,<4", "ipympl>=0.9.4,<0.10"]

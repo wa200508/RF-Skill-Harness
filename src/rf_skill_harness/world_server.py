@@ -37,6 +37,9 @@ class Workspace:
     def __init__(self, root, captures):
         self.root = Path(root).resolve()
         self.captures = dict(captures)
+        from .sigmf_inspector import InspectionStore
+        self.inspections = InspectionStore(self.root)
+        self.window_info = {}
         self.windows = OrderedDict()
         self.lock = threading.Lock()
         self.children_lock = threading.Lock()
@@ -81,8 +84,10 @@ class Workspace:
         payload = np.asarray(window.samples, dtype='<c8', order='C').tobytes()
         token = uuid4().hex
         self.windows[token] = payload
+        self.window_info[token] = (window.metadata(), archive.context())
         while len(self.windows) > 2:
-            self.windows.popitem(last=False)
+            removed, _ = self.windows.popitem(last=False)
+            self.window_info.pop(removed, None)
         return {'url': '/rf/iq/' + token, 'bytes': len(payload), 'metadata': window.metadata(),
                 'context': archive.context(), 'windows': archive.manifest['windows']}
 
@@ -248,6 +253,14 @@ class Handler(SimpleHTTPRequestHandler):
             with self.state.lock:
                 if self.path == '/rf/save':
                     self.state.save(values['graph']); result = {'saved': 'skill.grc'}
+                elif self.path in ('/rf/inspection/prepare', '/rf/inspection/raw'):
+                    token = values['input_token']
+                    metadata, context = self.state.window_info[token]
+                    options = values.get('tap', {})
+                    ticket = self.state.inspections.prepare(metadata, context, **options)
+                    result = {'id': ticket}
+                    if self.path.endswith('/raw'):
+                        result = self.state.inspections.save(ticket, self.state.windows[token])
                 elif self.path == '/rf/select':
                     result = self.state.select(values['capture'], values['window'], values['graph'])
                 elif self.path == '/rf/file':
@@ -290,7 +303,9 @@ def main(argv=None):
     os.environ.update(HOME=runtime_home.name, XDG_CACHE_HOME=runtime_home.name + '/.cache',
         XDG_CONFIG_HOME=runtime_home.name + '/.config', XDG_DATA_HOME=runtime_home.name + '/.local/share')
     state = Workspace(args.workspace, catalog)
-    httpd = ThreadingHTTPServer((args.bind, args.port), partial(Handler, state=state, directory=str(args.assets)))
+    from .sigmf_inspector import integrated_handler
+    handler, viewer = integrated_handler(state)
+    httpd = ThreadingHTTPServer((args.bind, args.port), partial(handler, state=state, directory=str(args.assets)))
     signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(0))
     print(f'GNU Radio World ready: http://127.0.0.1:{httpd.server_port}/', flush=True)
     print('Ctrl+C stops the server; saved skill files remain in ' + str(args.workspace.resolve()), flush=True)
@@ -298,6 +313,8 @@ def main(argv=None):
         httpd.serve_forever()
     finally:
         state.close()
+        for executor in (viewer._batch_executor, viewer._export_executor):
+            executor.shutdown(wait=False, cancel_futures=True)
         httpd.server_close()
         runtime_home.cleanup()
 

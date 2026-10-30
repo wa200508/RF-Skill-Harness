@@ -47,6 +47,10 @@ jobs:
           python scripts/qualify_native_install.py \
             --wheel dist/rf_skill_harness-*-py3-none-any.whl \
             --native-python /usr/bin/python3 --output "$RUNNER_TEMP/native-qualification"
+      - name: Upstream SigMF reader and inspection artifact tests
+        run: |
+          python -m pip install .
+          python -m pytest tests/test_sigmf_inspector.py -q
       - name: Native launcher, archive and interpreter isolation tests
         env:
           PYTHONPATH: src
@@ -64,7 +68,7 @@ jobs:
           See docs/install.md in the repository for installation and launch commands.
 
           Qualified from a fresh Python environment using real browser RX/TX DSP,
-          capture switching, native GNU Radio testing and RF MEL/UCI source export.
+          capture switching, Brian Day SigMF Viewer, native GNU Radio testing and RF MEL/UCI source export.
           Live AirSim receiver-tcp-v2 integration is not established by this release.
           NOTES
           gh release create "$GITHUB_REF_NAME" --verify-tag \

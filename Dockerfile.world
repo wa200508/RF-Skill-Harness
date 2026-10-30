@@ -31,7 +31,8 @@ RUN --mount=type=secret,id=proxy_ca,mode=0444 \
     else apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates gnuradio python3-numpy python3-yaml python3-pip python3-pytest; fi; \
     rm -rf /var/lib/apt/lists/*; \
-    python3 -m pip install --no-deps --no-build-isolation --break-system-packages .; \
+    if [ -f /run/secrets/proxy_ca ]; then export PIP_CERT=/run/secrets/proxy_ca; fi; \
+    python3 -m pip install --no-cache-dir --no-build-isolation --break-system-packages "numpy<2" .; \
     groupadd --gid 10001 rf && useradd --uid 10001 --gid rf --create-home rf
 COPY --from=web /site /opt/gnuradio-world
 ARG SOURCE_REVISION=development

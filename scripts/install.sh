@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install the complete GitHub wheel in a private venv. No Docker, npm or sudo.
 set -euo pipefail
-rf_version="${RF_HARNESS_VERSION:-0.2.0}"
+rf_version="${RF_HARNESS_VERSION:-0.3.0}"
 rf_prefix="${RF_HARNESS_PREFIX:-$HOME/.local/share/rf-skill-harness}"
 rf_python="${RF_HARNESS_PYTHON:-python3}"
 while [ "$#" -gt 0 ]; do

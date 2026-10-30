@@ -1,6 +1,6 @@
 # Install and run without Docker
 
-The [v0.2.0 release](https://github.com/wa200508/RF-Skill-Harness/releases/tag/v0.2.0)
+The [v0.3.0 release](https://github.com/wa200508/RF-Skill-Harness/releases/tag/v0.3.0)
 provides a **Python wheel and source archive with the built GNU Radio World editor,
 WebAssembly DSP, Pyodide and scientific Python browser assets included**. Pip or uv
 installs the local HTTP server and its Python dependencies. A browser renders the
@@ -21,7 +21,7 @@ install `python3-venv` first if your Python cannot create virtual environments.
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install \
-  https://github.com/wa200508/RF-Skill-Harness/releases/download/v0.2.0/rf_skill_harness-0.2.0-py3-none-any.whl
+  https://github.com/wa200508/RF-Skill-Harness/releases/download/v0.3.0/rf_skill_harness-0.3.0-py3-none-any.whl
 .venv/bin/rf-world doctor
 .venv/bin/rf-world serve --workspace ./my-rf-skill --transmit
 ```
@@ -53,7 +53,7 @@ Install as a persistent tool:
 
 ```bash
 uv tool install \
-  https://github.com/wa200508/RF-Skill-Harness/releases/download/v0.2.0/rf_skill_harness-0.2.0-py3-none-any.whl
+  https://github.com/wa200508/RF-Skill-Harness/releases/download/v0.3.0/rf_skill_harness-0.3.0-py3-none-any.whl
 rf-world doctor
 rf-world serve --workspace ./my-rf-skill --transmit
 ```
@@ -63,7 +63,7 @@ the shell, or run directly through uv:
 
 ```bash
 uv tool run --from \
-  https://github.com/wa200508/RF-Skill-Harness/releases/download/v0.2.0/rf_skill_harness-0.2.0-py3-none-any.whl \
+  https://github.com/wa200508/RF-Skill-Harness/releases/download/v0.3.0/rf_skill_harness-0.3.0-py3-none-any.whl \
   rf-world serve --workspace ./my-rf-skill --transmit
 ```
 
@@ -73,7 +73,7 @@ This creates a private virtual environment under
 `~/.local/share/rf-skill-harness/venv`, without editing your shell or system Python:
 
 ```bash
-curl -fsSL https://github.com/wa200508/RF-Skill-Harness/releases/download/v0.2.0/install.sh -o install-rf-harness.sh
+curl -fsSL https://github.com/wa200508/RF-Skill-Harness/releases/download/v0.3.0/install.sh -o install-rf-harness.sh
 bash install-rf-harness.sh
 ~/.local/share/rf-skill-harness/venv/bin/rf-world serve --workspace ./my-rf-skill --transmit
 ```

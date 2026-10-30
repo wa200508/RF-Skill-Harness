@@ -66,6 +66,18 @@ def main():
                 asyncio.run(qualify(url, args.output, args.chromium))
                 exports = list((root / 'skill/exports').iterdir())
                 assert len(exports) == 1 and not list(exports[0].rglob('*.sigmf-data'))
+                import numpy as np
+                files = list((root / 'skill/inspections').glob('*/signal.sigmf-meta'))
+                assert len(files) == 2
+                original = np.fromfile(root / 'captures/b/radar_rx0.sigmf-data', '<c8')[40000:80000]
+                for path in files:
+                    info = json.loads(path.read_text())['global']
+                    values = np.fromfile(path.with_name('signal.sigmf-data'), '<c8')
+                    expected = original * (2 if info['rf_harness:tap']['block'] == 'custom_dsp' else 1)
+                    np.testing.assert_array_equal(values, expected)
+                    assert info['rf_harness:parent_timestamp_ns'] == '123456789004000007'
+                assert not (exports[0] / 'inspections').exists()
+
             finally:
                 process.send_signal(signal.SIGTERM)
                 process.wait(timeout=20)

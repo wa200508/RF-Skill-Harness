@@ -2,8 +2,9 @@
 // Small editor extension; upstream GNU Radio World owns the canvas, code editor,
 // scheduler and plots. No remote desktop or display server is involved.
 import './rf-extension.css';
+import {installSigmf, inspectionRunContext} from './rf-sigmf';
 
-type Hooks = { graph(): any; load(graph: any): void; run(): unknown; stop(): void };
+type Hooks = { outputs(): any[]; viewer(button: HTMLButtonElement, panel: HTMLElement): () => void; graph(): any; load(graph: any): void; run(): unknown; stop(): void };
 let selected: any = null;
 let selectionGeneration = 0;
 
@@ -20,6 +21,7 @@ export function rfRunContext(doc: any): void {
     if (block.id === 'variable' && block.name === 'samp_rate') block.parameters.value = String(selected.context.sample_rate_hz);
     if (block.id === 'variable' && block.name === 'carrier_hz') block.parameters.value = String(selected.context.carrier_hz);
   }
+  inspectionRunContext(doc);
 }
 
 export async function installRfExtension(hooks: Hooks): Promise<void> {
@@ -109,6 +111,7 @@ export async function installRfExtension(hooks: Hooks): Promise<void> {
   hooks.load(session.graph);
   (window as any).__rfHarness = {hooks, session, select};
   await select();
+  installSigmf(hooks as any, bar, () => selected, select, status);
 }
 
 async function api(path: string, value?: any): Promise<any> {

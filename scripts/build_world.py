@@ -48,7 +48,7 @@ def main():
         with ThreadPoolExecutor(max_workers=6) as pool:
             list(pool.map(fetch, lock['files'].items()))
         shutil.copyfile(output / 'blocks.json', source / 'editor/public/blocks.json')
-        for name in ['rf-extension.ts', 'rf-extension.css']:
+        for name in ['rf-extension.ts', 'rf-extension.css', 'rf-sigmf.ts']:
             shutil.copyfile(repo / 'world' / name, source / 'editor/src' / name)
         main = source / 'editor/src/main.ts'
         text = main.read_text()
@@ -60,6 +60,18 @@ def main():
             text = text.replace(old, '  rfRunContext(doc);\n' + old)
             text += '\n' + marker + '''
 editorReady.then(() => installRfExtension({
+  outputs: () => state.insts.filter(i => i.enabled && !i.bypassed).flatMap(i =>
+    Array.from({length: portCount(i, 'out')}, (_, n) => ({i, n, p: portMeta(i, 'out', n)}))
+      .filter(x => x.p.domain === 'stream' && ['complex', 'float'].includes(portType(x.i, 'out', x.n)))
+      .map(x => {const vlen = evalExpr(String(x.p.vlen), buildRunScope());
+        return {block: x.i.name, port: x.p.streamIndex, channels: vlen.ok ? Number(vlen.value) : 1,
+                datatype: portType(x.i, 'out', x.n) === 'complex' ? 'cf32_le' : 'rf32_le'};})),
+  viewer: (button, panel) => {
+    const entry = {id: 'sigmf', button, panel}; workspaceTabs.push(entry); wireWorkspaceTab(entry);
+    const previous = workspaceTabController.activate.bind(workspaceTabController);
+    workspaceTabController.activate = tab => {panel.hidden = tab !== 'sigmf'; previous(tab);};
+    return () => activateWorkspaceTab('sigmf');
+  },
   graph: () => buildGrcDoc(),
   load: doc => { loadFlowgraph(doc, false); resetHistory(); },
   run: () => run(),
@@ -82,6 +94,8 @@ editorReady.then(() => installRfExtension({
     }
 
 ''' + anchor)
+            text = text.replace("return deps.state.insts.some(i => i.id === SIGMF_SINK_ID", "return !!(window as any).__rfInspectTap || deps.state.insts.some(i => i.id === SIGMF_SINK_ID")
+            text = text.replace("  const addedPaths = new Set<string>();", "  if ((window as any).__rfInspectTap) recordingFiles.push({kind: 'output', path: '/local-output/rf-inspection/signal', base: 'signal', dir: null});\n  const addedPaths = new Set<string>();")
             run.write_text(text)
         subprocess.run(['npm', 'ci', '--no-audit', '--no-fund'], cwd=source / 'editor', check=True)
         # Skip upstream's optional example/wiki generation; retain our own project.
@@ -97,7 +111,13 @@ editorReady.then(() => installRfExtension({
             text = re.sub(r'<script\b[^>]*>.*?</script>', lambda m: '' if any(word in m[0] for word in
                 ('googletagmanager', 'gtag(', 'cloudflareinsights')) else m[0], text, flags=re.S)
             path.write_text(text)
-        shutil.copyfile(source / 'LICENSE', output / 'GNU-Radio-World-LICENSE.txt')
+        runner_html = output / 'runner/build/runner.html'
+        text = runner_html.read_text()
+        anchor = "if (message.type === 'done' && message.mode === 'download') {"
+        if text.count(anchor) != 1: raise ValueError('Upstream SigMF output hook changed')
+        text = text.replace(anchor, "if (message.type === 'done' && message.mode === 'download' && !window.parent.__rfAcceptSigmf?.(window, RUN_RECORDING_TOKEN, path, message)) {")
+        runner_html.write_text(text)
+        shutil.copyfile(source / 'LICENSE' , output / 'GNU-Radio-World-LICENSE.txt')
         shutil.copyfile(repo / 'world/upstream-lock.json', output / 'upstream-lock.json')
         # The complete editor source and our patch are supplied beside binaries.
         shutil.copytree(source / 'editor/src', output / 'corresponding-source/editor/src', dirs_exist_ok=True)

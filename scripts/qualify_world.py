@@ -76,6 +76,23 @@ async def qualify(url, output, chromium=None, native_tools=True):
         await page.get_by_role('button', name='Save file', exact=True).click()
         await page.wait_for_function("document.querySelector('.rf-dialog').textContent.includes(' Saved')")
         await page.locator('.rf-dialog').get_by_role('button', name='Close', exact=True).click()
+        # Brian Day's real SigMF Viewer remains a peer tab in World.
+        await page.wait_for_function('!!window.__rfInspector')
+        await page.click('#rf-view-iq')
+        await page.wait_for_function("document.querySelector('#rf-status').textContent.includes('original samples')")
+        viewer = page.frame_locator('#rf-sigmf-frame')
+        await viewer.locator('.js-plotly-plot').first.wait_for(timeout=30000)
+        assert 'SigMF Viewer' in await viewer.locator('body').inner_text()
+        await page.screenshot(path=str(output / 'sigmf-input.png'))
+        await page.click('#tabEditor')
+        await page.click('#rf-inspect-run')
+        await page.wait_for_function("document.querySelector('#rf-status').textContent.includes('from custom_dsp:0')", timeout=120000)
+        await viewer.locator('.js-plotly-plot').first.wait_for(timeout=30000)
+        await page.screenshot(path=str(output / 'sigmf-processed.png'))
+        assert not await page.locator('#rf-sigmf-panel').is_hidden()
+        assert await page.locator('#tabEditor').count() == 1
+        after = await (await page.request.get(url + 'rf/session')).json()
+        assert after['graph'] == second_design['graph'], 'Viewer instrumentation entered the design'
         native, exported = None, None
         if native_tools:
             await page.click('#rf-native')
@@ -104,7 +121,7 @@ async def qualify(url, output, chromium=None, native_tools=True):
         assert not errors, errors
         await browser.close()
     result = {'status': 'passed', 'interface': 'gnuradio-world', 'browser_wasm_dsp': True,
-        'python_gain_edited': True, 'rx_tx_samples_processed': True, 'rx_tx_plots': True,
+        'python_gain_edited': True, 'rx_tx_samples_processed': True, 'rx_tx_plots': True, 'sigmf_input_and_processed_viewer': True,
         'dataset_switch_preserves_design': True, 'project_file_saved_in_browser': True,
         'exact_nanosecond_metadata': True, 'native_window_test': native,
         'native_export': exported, 'native_tools_exercised': native_tools, 'reload_preserves_skill': True, 'page_errors': errors}
