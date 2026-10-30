@@ -1,0 +1,17 @@
+id: rfskill_tx
+label: RF Transmit Waveform
+category: '[RF Skill]'
+flags: [python]
+inputs:
+- domain: stream
+  dtype: complex
+templates:
+  imports: import skill_io
+  make: skill_io.TxSink()
+documentation: |-
+  Define TX in the graph with standard GNU Radio sources, modulation and custom DSP.
+  Components are normalized full scale [-1,1], not calibrated receive volts.
+  Put a Head(tx_samples) before this endpoint AND before waveform plot taps.
+  Export schedules this finite waveform with native RF MEL TransmitEvent/WaveformBuffer.
+  This initial profile repeats a fixed waveform with non-overlapping TX/guard/RX events.
+file_format: 1

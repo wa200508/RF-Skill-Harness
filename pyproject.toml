@@ -15,12 +15,13 @@ lab = ["jupyterlab>=4.2,<5", "ipykernel>=6.29,<8", "matplotlib>=3.7,<4", "ipympl
 
 [project.scripts]
 rf-harness = "rf_skill_harness.cli:main"
+rf-skill-companion = "rf_skill_harness.companion_gui:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-rf_skill_harness = ["timeline.html", "native/*"]
+rf_skill_harness = ["timeline.html", "native/*", "companion_blocks/*.yml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

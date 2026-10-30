@@ -11,6 +11,11 @@
 #include <rfmel/c2/CancelStatus.h>
 #include <rfmel/data/ProductRxEndpoint.h>
 #include <rfmel/jobs/JobInterval.h>
+#include <rfmel/c2/VirtualAperture.h>
+#include <rfmel/c2/C2MEL.h>
+#include <rfmel/c2/JobRequest.h>
+#include <rfmel/c2/ElementGroupCommand.h>
+#include <rfmel/jobs/CommonModulations.h>
 #include <boost/uuid/name_generator_sha1.hpp>
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -23,6 +28,7 @@
 #include <iostream>
 #include <mutex>
 #include <thread>
+#include <cmath>
 
 using json = nlohmann::json;
 namespace rt = rf_fm_demod::runtime;
@@ -60,10 +66,57 @@ public:
       PyGILState_Release(gil); return result;
     } catch (...) { PyGILState_Release(gil); throw; }
   }
+  std::vector<mel::MELComplex<std::int16_t>> transmit() {
+    const auto gil = PyGILState_Ensure();
+    try {
+      auto value = PyObject_CallMethod(engine_, "transmit_iq", nullptr);
+      checked(value != nullptr);
+      char *data = nullptr; Py_ssize_t size = 0;
+      if (PyBytes_AsStringAndSize(value, &data, &size) != 0 || size <= 0 || size % 4 || size > 65536*4) {
+        Py_DECREF(value); throw std::runtime_error("Invalid ComplexINT16 transmit waveform");
+      }
+      std::vector<mel::MELComplex<std::int16_t>> samples;
+      auto sample = [&](Py_ssize_t i) { return static_cast<std::int16_t>(
+          static_cast<std::uint16_t>(static_cast<unsigned char>(data[i])) |
+          (static_cast<std::uint16_t>(static_cast<unsigned char>(data[i+1])) << 8)); };
+      for (Py_ssize_t i=0; i<size; i+=4) samples.emplace_back(sample(i), sample(i+2));
+      Py_DECREF(value); PyGILState_Release(gil); return samples;
+    } catch (...) { PyGILState_Release(gil); throw; }
+  }
   ~PythonEngine() {
     if (state_) { PyEval_RestoreThread(state_); Py_XDECREF(engine_); Py_Finalize(); }
   }
 };
+
+std::shared_ptr<mel::JobDetail> request_transceive_flow(
+    const std::shared_ptr<mel::C2MEL> &control, const rt::AppConfig &config,
+    std::uint32_t endpoint, const json &tx) {
+  std::vector<ams::iface::mel::UCI_ID> capabilities;
+  for (const auto &text : config.capability_ids) {
+    const auto uuid = boost::uuids::string_generator{}(text);
+    std::array<std::uint8_t,16> bytes; std::copy(uuid.begin(), uuid.end(), bytes.begin());
+    capabilities.emplace_back(bytes, "Capability");
+  }
+  auto aperture_result = control->requestVirtualAperture(config.virtual_aperture_definition_id, 1, {}, "", capabilities).get();
+  if (!aperture_result) throw std::runtime_error("RF MEL rejected transmit-capable VirtualAperture");
+  auto aperture = aperture_result.get();
+  mel::JobRequest request; request.setPriority(1);
+  request.setTxPowerModeIDs({tx.at("tx_power_mode_id").get<mel::TxPowerModeID>()});
+  bool receive=false, transmit=false;
+  for (const auto &label : aperture->getElementGroupLabels()) {
+    auto command = aperture->createElementGroupCommand(label);
+    if (command->getMode() == mel::Mode::RX) {
+      command->addEndpointIDs({endpoint}); receive=true; request.addElementGroup(command);
+    } else if (command->getMode() == mel::Mode::TX) {
+      command->setTxPower(tx.at("tx_power_w").get<mel::TxPowerLevel>());
+      transmit=true; request.addElementGroup(command);
+    }
+  }
+  if (!receive || !transmit) throw std::runtime_error("VirtualAperture must expose RX and TX element groups");
+  auto result = aperture->requestJob(request).get();
+  if (!result) throw std::runtime_error("RF MEL rejected transmit/receive JobRequest");
+  return result.get();
+}
 
 struct Frame { std::string bytes; json metadata; };
 struct Queue {
@@ -171,7 +224,12 @@ int main(int argc, char **argv) {
     endpoint = rt::create_product_rx_endpoint_with_retry(handles->data_mel, 3, std::chrono::milliseconds(100));
     callback = [weak=std::weak_ptr<Queue>(queue)](auto metadata, auto data, auto count) { if (auto q=weak.lock()) q->receive(metadata,data,count); };
     endpoint->setDataReadyCallback(callback);
-    job = rt::request_idd_receive_flow(handles->c2_mel, config, endpoint->getEndpointID());
+    const bool transmitting = value.contains("transmit");
+    std::shared_ptr<std::vector<mel::MELComplex<std::int16_t>>> waveform;
+    if (transmitting) {
+      waveform = std::make_shared<std::vector<mel::MELComplex<std::int16_t>>>(python->transmit());
+      job = request_transceive_flow(handles->c2_mel, config, endpoint->getEndpointID(), value.at("transmit"));
+    } else job = rt::request_idd_receive_flow(handles->c2_mel, config, endpoint->getEndpointID());
     {
       // Provider-owned control objects must die before the factory owner dlcloses
       // the library. Do not retain a bare shared_ptr beyond handles.reset().
@@ -185,6 +243,7 @@ int main(int argc, char **argv) {
     status_thread = std::jthread(rt::publish_periodic_service_status, client, config, ready, started, std::ref(failure));
     const auto duration_fs = value.at("receive_duration_fs").get<std::int64_t>();
     if (duration_fs <= 0 || duration_fs > 10'000'000'000'000'000LL) throw std::runtime_error("Invalid receive interval duration");
+    const auto sequence_fs = transmitting ? value.at("transmit").at("sequence_duration_fs").get<std::int64_t>() : duration_fs;
     std::uint32_t interval_id = 0;
     std::uint64_t report_id = 0;
     boost::uuids::name_generator_sha1 ids(boost::uuids::string_generator{}(config.service_uuid));
@@ -197,16 +256,28 @@ int main(int argc, char **argv) {
       if (now >= next_interval) {
         // Refill a bounded look-ahead, never a wall-clock mission deadline.
         std::vector<mel::JobInterval> intervals;
-        auto span = std::max<std::int64_t>(duration_fs, 100'000'000'000'000LL);
-        for (std::int64_t offset=0; offset<span && intervals.size()<128; offset+=duration_fs) {
+        auto span = std::max<std::int64_t>(sequence_fs, 100'000'000'000'000LL);
+        for (std::int64_t offset=0; offset<span && intervals.size()<128; offset+=sequence_fs) {
           mel::ReceiveEvent event; event.setCenterFrequency(config.center_frequency_hz); event.setSampleFrequency(config.iq_sample_rate_hz);
           event.setDuration(ams::util::math::Femtoseconds(duration_fs));
           mel::JobInterval interval; interval.setIntervalID(++interval_id);
-          interval.getSequence().getRxEvents().push_back(event); interval.getSequence().setDuration(ams::util::math::Femtoseconds(duration_fs));
+          if (transmitting) {
+            const auto &tx = value.at("transmit");
+            event.setStart(ams::util::math::Femtoseconds(tx.at("rx_start_fs").get<std::int64_t>()));
+            mel::TransmitEvent transmit;
+            transmit.setCenterFrequency(config.center_frequency_hz);
+            transmit.setDuration(ams::util::math::Femtoseconds(tx.at("duration_fs").get<std::int64_t>()));
+            transmit.setTxAtten_dB(tx.at("attenuation_db").get<double>()); transmit.setModIndex({0});
+            mel::JobTransmitVector data = waveform;
+            mel::WaveformBuffer buffer(mel::DataSampleFormat::ComplexCartesian, data);
+            interval.getModulations().push_back(mel::CommonModulations{buffer});
+            interval.getSequence().getTxEvents().push_back(transmit);
+          }
+          interval.getSequence().getRxEvents().push_back(event); interval.getSequence().setDuration(ams::util::math::Femtoseconds(sequence_fs));
           intervals.push_back(interval);
         }
         job->addJobIntervals(intervals);
-        const auto queued = std::chrono::nanoseconds((static_cast<std::int64_t>(intervals.size()) * duration_fs) / 1'000'000);
+        const auto queued = std::chrono::nanoseconds((static_cast<std::int64_t>(intervals.size()) * sequence_fs) / 1'000'000);
         scheduled_until += queued;
         next_interval = scheduled_until - queued / 2;
       }

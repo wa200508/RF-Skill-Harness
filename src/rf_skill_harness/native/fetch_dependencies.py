@@ -64,6 +64,7 @@ extension = r'''
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <chrono>
+#include <rfmel/jobs/CommonModulations.h>
 class FixtureEndpoint final : public ams::iface::rfmel::ProductRxEndpoint {
   std::function<void(std::shared_ptr<ams::iface::rfmel::ProductRxMetadata>, ams::iface::rfmel::JobDataPointer, size_t)> callback_;
   nlohmann::json config_;
@@ -79,6 +80,27 @@ public:
     delivered_ = true;
     if (intervals.empty() || intervals[0].getSequence().getRxEvents().empty()) throw std::runtime_error("No native receive schedule");
     if (!callback_) throw std::runtime_error("No native callback");
+    if (config_.contains("expected_tx")) {
+      const auto &interval = intervals[0]; const auto &sequence = interval.getSequence();
+      if (sequence.getTxEvents().size()!=1 || sequence.getRxEvents().size()!=1 || interval.getModulations().size()!=1)
+        throw std::runtime_error("Expected one native TX waveform and one RX event");
+      const auto &tx = sequence.getTxEvents()[0]; const auto &rx = sequence.getRxEvents()[0];
+      if (tx.getStart().count()!=0 || tx.getDuration().count() >= rx.getStart().count() ||
+          rx.getStart().count()+rx.getDuration().count() >= sequence.getDuration().count() || tx.getModIndex()!=std::vector<int>{0})
+        throw std::runtime_error("TX/guard/RX/guard schedule is invalid");
+      const auto &common = std::get<ams::iface::rfmel::CommonModulations>(interval.getModulations()[0]);
+      const auto &buffer = std::get<ams::iface::rfmel::WaveformBuffer>(common);
+      const auto &samples = *std::get<ams::iface::rfmel::ComplexI16VecPtr>(buffer.getTxSamples());
+      nlohmann::json encoded = nlohmann::json::array();
+      for (const auto &sample : samples) encoded.push_back({sample.real(), sample.imag()});
+      if (encoded != config_.at("expected_tx")) throw std::runtime_error("Native TX samples differ from graph-generated IQ");
+      if (tx.getDuration().count() != samples.size()*1000000000000000LL/config_.at("sample_rate_hz").get<std::int64_t>())
+        throw std::runtime_error("TX sample rate/duration mismatch");
+      std::ofstream output(config_.at("tx_log").get<std::string>());
+      output << nlohmann::json{{"samples",samples.size()},{"tx_duration_fs",tx.getDuration().count()},
+        {"rx_start_fs",rx.getStart().count()},{"sequence_duration_fs",sequence.getDuration().count()},
+        {"iq_matches_graph",true}};
+    }
     for (const auto &frame : config_.at("frames")) {
       auto meta = std::make_shared<ams::iface::rfmel::ProductRxMetadata>();
       const auto ns = frame.at("timestamp_ns").get<std::int64_t>();

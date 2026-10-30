@@ -1,0 +1,296 @@
+{
+  "upstream": "https://github.com/777arc/gnuradio-world",
+  "revision": "96e805fb694e3e797b72ebfad30232c732e3f257",
+  "origin": "https://gnuradioworld.com/",
+  "runtime_build": "f599b2c49cbd",
+  "files": {
+    "asset-sizes.json": {
+      "sha256": "af6f5d2be13f41468fd6721520ab57ad055e97d0ca1d5f37903ef98dcdf0229a",
+      "bytes": 1799
+    },
+    "blocks.json": {
+      "sha256": "57beae5f9dfbd6f53f0c4ed5ed867b434027db489fa181691c4b88911ddbc28e",
+      "bytes": 2858485
+    },
+    "pyodide/numpy-2.4.3-cp314-cp314-pyemscripten_2026_0_wasm32.whl": {
+      "sha256": "0cad9c1b91f0082e4f959bc0e0bf5835a2efbba6ab3b1e9d1fe6e7e564cca98e",
+      "bytes": 2916023
+    },
+    "pyodide/pyodide-lock.json": {
+      "sha256": "c963d22858f6bcb8f41586a2142f03905ab370c88ea22a86a2736e95fac2a8f3",
+      "bytes": 113804
+    },
+    "pyodide/pyodide.asm.mjs": {
+      "sha256": "fd7a3cefa122ff6463dcf2997961eb341250e4cc4ed60281448390f0a767cca2",
+      "bytes": 1249500
+    },
+    "pyodide/pyodide.asm.wasm": {
+      "sha256": "6c8986a8ee583401069aa403e76ee79d4633a1478ab11cea76030bc299aded9f",
+      "bytes": 9596386
+    },
+    "pyodide/pyodide.mjs": {
+      "sha256": "c75dd73bb0c70674135f9f4ab746c9b5316e9fe027cafacb2be445e658f04c92",
+      "bytes": 17931
+    },
+    "pyodide/python_stdlib.zip": {
+      "sha256": "b5ca2308e9fa72eda319889a1ddf086389e9f1234ced279cc71267fe9ba56e54",
+      "bytes": 2545198
+    },
+    "pyodide/scipy-1.18.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl": {
+      "sha256": "4ef1569eac793bec84a92fa2eaf24eafb4529ff10c5ed87d1e335063f26142f3",
+      "bytes": 14009071
+    },
+    "runner/build/adsb.wasm": {
+      "sha256": "a17a4078d51caf7133df809aaf0e8e4ac0a80de112fd51ab70bab305ad06c24f",
+      "bytes": 163624
+    },
+    "runner/build/adsb_map.js": {
+      "sha256": "b9a58c28a3e074f1df0686f438deb15da4037d34622003d4bb583aa15fdb5015",
+      "bytes": 41741
+    },
+    "runner/build/ais.wasm": {
+      "sha256": "936aa0e3d7d2595e0795dab83de23eef19437ebf9d70eb05bc25e848fb77a876",
+      "bytes": 175135
+    },
+    "runner/build/ais_map.js": {
+      "sha256": "0bb658f20839016351f63f0a31df50d702d3d5578be896350e4a31d4ca02d0ec",
+      "bytes": 59119
+    },
+    "runner/build/audio_worklet.js": {
+      "sha256": "867ca7040eec20d72021e991cb6076b7c317d821f61d4019e5cb0e4d173f373e",
+      "bytes": 10978
+    },
+    "runner/build/b2xx.wasm": {
+      "sha256": "acf1f422c7dff8aca2d6b33f28622b7384b3edb0855f1e1ec3594662f8041da4",
+      "bytes": 6417791
+    },
+    "runner/build/bb60_worker.js": {
+      "sha256": "e06a63569ecce53e5f5cbeb5a61bb557b175fb350285e6773e6e33a69415a0b3",
+      "bytes": 35926
+    },
+    "runner/build/bbc.wasm": {
+      "sha256": "13123b9890ba94e61d6fa10673921126b21a1fd2d06329027a70fe1f43c90f09",
+      "bytes": 110441
+    },
+    "runner/build/browser_file_reader.js": {
+      "sha256": "ae54c1d53248fcf2ae1ac464a7b9d709462b6b2d847b201aafc0e07f0de464a3",
+      "bytes": 11236
+    },
+    "runner/build/browser_file_writer.js": {
+      "sha256": "e68474020804a634a367195b5cce538f9556f31399ee3618142d9d20a4e0324a",
+      "bytes": 8144
+    },
+    "runner/build/channels.wasm": {
+      "sha256": "d8fba67987e1579274725d20c252fe95b174b7c3ae3e3d2208153b3c1ccf388f",
+      "bytes": 469972
+    },
+    "runner/build/correctiq.wasm": {
+      "sha256": "404163ae9e4bf9e793ff10c530f6a5f28cd420cd09516bc526ea84dc23caaa9b",
+      "bytes": 109971
+    },
+    "runner/build/digital.wasm": {
+      "sha256": "a703856dd171a375e95edf5e11aca651d181a9e5b2f206d2f542841e16e4c7e4",
+      "bytes": 1161940
+    },
+    "runner/build/droneid.wasm": {
+      "sha256": "ab94147de4a572bfa9c2bcb440cfc650adc792a0fc450bd1fcc2b64ccb3ef0d3",
+      "bytes": 350176
+    },
+    "runner/build/dtv.wasm": {
+      "sha256": "4c896d353c27f940f221cbc9b38752361e390e06b0b488960b479defadf654cf",
+      "bytes": 1226455
+    },
+    "runner/build/dvbs2.wasm": {
+      "sha256": "cee7ca9fad3a274ee8f46faec521ab086c81ba5f217ab75b830b8c38f5eabafa",
+      "bytes": 1016868
+    },
+    "runner/build/dvbs2rx.wasm": {
+      "sha256": "52e9b6d9cee372ce1c648438c1eb904d7253ca52b74435fa49ec728ec9ccc77c",
+      "bytes": 476822
+    },
+    "runner/build/foo.wasm": {
+      "sha256": "3d7bfacdd4e388b1ba2a9d28141ac4a921809374db83e44c70ed9563181bfd9e",
+      "bytes": 460743
+    },
+    "runner/build/fosphor.wasm": {
+      "sha256": "4c80e7c0645e32098eda59d2ada650aaa961542514bae1a5f491265d9418d1f1",
+      "bytes": 47629
+    },
+    "runner/build/fosphor_webgpu.js": {
+      "sha256": "7dcf13578e9eb6bb91bb53a2d3b16b5e7f1b4f8b606ec9d90fb7d30e360358c1",
+      "bytes": 40396
+    },
+    "runner/build/gnuradio_world_logo.svg": {
+      "sha256": "311ec02e6d42cbe55cda77583918422b77a31fa617cda8ab4cb80366efb01cb4",
+      "bytes": 44861
+    },
+    "runner/build/grwire_worker.js": {
+      "sha256": "a9a5b77cc89b15395c25966fda917fb07d48949156bb93417d2774bfd01b75b6",
+      "bytes": 14299
+    },
+    "runner/build/gsm.wasm": {
+      "sha256": "1f25924bf878288e1d5b226779c7d51d686d41feebdf688466753133b1e2bdc5",
+      "bytes": 1547018
+    },
+    "runner/build/gui_observation.js": {
+      "sha256": "b1345170fb2a255fcdc974aa2c5c8fbf88e3565376737ff0598794b1c2159a70",
+      "bytes": 6601
+    },
+    "runner/build/hackrf_worker.js": {
+      "sha256": "c5beac18b87a1ae9f1ababf184d3ca80e54cdeb138b807540eb002e5b597f4d1",
+      "bytes": 21905
+    },
+    "runner/build/ham.wasm": {
+      "sha256": "59828a365f3ffe27ee74fec6250fbaf90c00f674113ea073e243f33716b0afba",
+      "bytes": 22978
+    },
+    "runner/build/hrpt.wasm": {
+      "sha256": "8a2c064355b8937b38f585faa093b6887f69d9137db15e6faeca1c624f7b3819",
+      "bytes": 148452
+    },
+    "runner/build/ieee802_11.wasm": {
+      "sha256": "35ec88d564f16f8e0f163121db0d4fbc20c3796c18c2cb1c02618d124aa8524e",
+      "bytes": 695955
+    },
+    "runner/build/ieee802_15_4.wasm": {
+      "sha256": "f99bc7f93d52480b6bea1deb11da526c62fbb3ffbc15204d69a91b85911dc252",
+      "bytes": 603158
+    },
+    "runner/build/inspector.wasm": {
+      "sha256": "b71907eaf398bd694f71e3824cf915af698ff5f110bc64244a0c70201412bca3",
+      "bytes": 398895
+    },
+    "runner/build/iridium.wasm": {
+      "sha256": "5dce173fa83488a845fa7a9ba6d17cdc936447ee2186b96fd8aaa61695a65f0c",
+      "bytes": 506856
+    },
+    "runner/build/js/js_clip_cc.js": {
+      "sha256": "517e3cb5f83e65526355c7951b85957d4dbbcf2244c0a4768a5131afc6c02edc",
+      "bytes": 2188
+    },
+    "runner/build/js/js_pdu_length.js": {
+      "sha256": "d3dc62f26526a87d06d4c3bd6bacf1c1e692a1fed932ffa1033d00d446415f5b",
+      "bytes": 1029
+    },
+    "runner/build/js/js_peak_hold_ff.js": {
+      "sha256": "ff59077fff57f7952439e4ab7b387fe1d343fc71c614152c1629699e943ba5f0",
+      "bytes": 1719
+    },
+    "runner/build/js/js_phase_unwrap_ff.js": {
+      "sha256": "20eba469661a7c5c3b96f4c5ceaea1b963075ad691d5b6d2f81c0b8dbe784333",
+      "bytes": 1939
+    },
+    "runner/build/js/manifest.json": {
+      "sha256": "793acd5204cba663f8245dff89d7448a029e73b3d774d09fa8be967cfc43e085",
+      "bytes": 120
+    },
+    "runner/build/js_runtime.js": {
+      "sha256": "fc4a985f9e82860a81d47387ac25c69cc2ac21aed4d40c95e33daf16e869868d",
+      "bytes": 53285
+    },
+    "runner/build/lora_sdr.wasm": {
+      "sha256": "01bd287516a4bc03c86256bb513180088bb185fd3951e0f1b166fbf32c909636",
+      "bytes": 589817
+    },
+    "runner/build/lte.wasm": {
+      "sha256": "0cb5ae91b4970871091922be7d70791d10a4aa4d43b70493b40a8619a836a8b7",
+      "bytes": 687545
+    },
+    "runner/build/network.wasm": {
+      "sha256": "b9f679e563e8f4a95fada0602e88332c548e2f397d45994ee99fef0985ccc360",
+      "bytes": 484454
+    },
+    "runner/build/paint.wasm": {
+      "sha256": "2fc94811c44fb34ecd17bb49c12195b7875f2570be4851b9d5005f1c2e1e0cdf",
+      "bytes": 87891
+    },
+    "runner/build/pdu.wasm": {
+      "sha256": "0486f9c90a58fcc9892ae67bb78f216faba67c8f1ef86349fed5d0818770cbb5",
+      "bytes": 772325
+    },
+    "runner/build/plutosdr_worker.js": {
+      "sha256": "70bf0074bb5f0071c58a976322e9d9af5b10a47c8ea4c09ca91d7598137fc780",
+      "bytes": 30756
+    },
+    "runner/build/pyodide/gr_pyodide_worker.js": {
+      "sha256": "083a75beab1e897eb901bf7780d377ddfe2ae4b8e6ec2dd589bee92ae9d8cd5d",
+      "bytes": 15453
+    },
+    "runner/build/pyodide/py/gnuradio/__init__.py": {
+      "sha256": "af53e18e97b52efce08be297e0ec17de83facd24b002fd4f73803722c07633fc",
+      "bytes": 746
+    },
+    "runner/build/pyodide/py/gnuradio/gr/__init__.py": {
+      "sha256": "e7fdc48f2f96ca9523b053962a5f2f759e813bf08dd1726624ff62d4621645c0",
+      "bytes": 2485
+    },
+    "runner/build/pyodide/py/gnuradio/gr/gateway.py": {
+      "sha256": "c57eb66c774cad56f24ee50671cc778e5d0082ac7b5015e06b3444ab7a7d5a91",
+      "bytes": 18107
+    },
+    "runner/build/pyodide/py/gnuradio/gr/tags.py": {
+      "sha256": "13e57a795bc1cd0b737d061a3b9d5834ff767e1ce13623deeef034ee101a56aa",
+      "bytes": 1363
+    },
+    "runner/build/pyodide/py/grworld.py": {
+      "sha256": "5cbf54dcd52b4252ee2c34c37671e927c651ec2c65a95026dad947034ff0876a",
+      "bytes": 12912
+    },
+    "runner/build/pyodide/py/manifest.json": {
+      "sha256": "47d884b53095ad51fb7865effa01c57162947db599c26d3b2ed283de4abd1fef",
+      "bytes": 168
+    },
+    "runner/build/pyodide/py/pmt.py": {
+      "sha256": "2d1dd8c3ea9a1a9f3a78dafb6d1b9ece6f1440349bd64c675e43dffd2d33f5e2",
+      "bytes": 7463
+    },
+    "runner/build/qtloader.js": {
+      "sha256": "a07c7a3a5e65cf12d0b8511024b32149634f42aeb9a8782fb06d36754d60651f",
+      "bytes": 12045
+    },
+    "runner/build/radar.wasm": {
+      "sha256": "c5a72c2829ae2d9ef8332eb38bc0d8dc60e2625f7b8143bf78e2b6ae2f76b644",
+      "bytes": 596687
+    },
+    "runner/build/rds.wasm": {
+      "sha256": "387ec62cc1dcc8298fa3bf7d843e5e0f373335e664e0679adee7c1ef13af445f",
+      "bytes": 520246
+    },
+    "runner/build/rtlsdr_reader.js": {
+      "sha256": "24b389c81f8ad823b9a9d84564febb2cc9f60c3128b50e44b317cba187915059",
+      "bytes": 54625
+    },
+    "runner/build/runner.html": {
+      "sha256": "f25d8311604cd3a90d3d8f44e2c50a40da6b634fa43500ac9c5604a4e95c69ac",
+      "bytes": 82137
+    },
+    "runner/build/runner.js": {
+      "sha256": "46761ae5229adce0a63c040fadb7ec803904fc379f17060a36ee96b609e9c2e7",
+      "bytes": 3771785
+    },
+    "runner/build/runner.wasm": {
+      "sha256": "8f5d618077f138d60db4a8bf5b0ed18cc2e93dcbe73d86248b4eec6b964f1512",
+      "bytes": 23439165
+    },
+    "runner/build/satellites.wasm": {
+      "sha256": "78ef97ad730c28f544eb821fa0770bd1b499fc3d93b33b6c24a0af2f91550fc7",
+      "bytes": 1151262
+    },
+    "runner/build/spectrum_analyzer.js": {
+      "sha256": "e684117d9096487592492eb05ed3bd056efb461d4b4cfe9241ba3c28c58383ac",
+      "bytes": 59798
+    },
+    "runner/build/spectrum_analyzer_mmo.js": {
+      "sha256": "cdeb5186581344c93fb417f6dca8aa4abbc92cffef305d772da9ed6c41489c48",
+      "bytes": 20964
+    },
+    "runner/build/tempest.wasm": {
+      "sha256": "ec65345a950c00d922c9908c88086a9d94c0a6a4df9a698e11cd480c4935dc3e",
+      "bytes": 245825
+    },
+    "runner/build/vocoder.wasm": {
+      "sha256": "47503cb65ee5d9ced8fcde062ca6de98a69d3eedf5d60c1abb34062c85cad787",
+      "bytes": 80385
+    }
+  }
+}
