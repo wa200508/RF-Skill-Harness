@@ -45,3 +45,32 @@ def test_explicit_native_interpreter_is_not_silently_replaced():
         with pytest.raises(ValueError, match='no bindings'):
             find_native_python('/deliberate/python')
     probe.assert_called_once_with('/deliberate/python')
+
+
+def test_shutdown_stops_owned_native_processing(tmp_path):
+    import threading
+    import time
+    from rf_skill_harness.world_server import Workspace
+    state = Workspace(tmp_path, {'capture': tmp_path})
+    errors = []
+    def run():
+        try:
+            state.native('preview', {'capture': 'capture', 'window': 0})
+        except ValueError as error:
+            errors.append(str(error))
+    with patch('rf_skill_harness.native_python.native_command',
+               return_value=[sys.executable, '-c', 'import time; time.sleep(60)']):
+        thread = threading.Thread(target=run)
+        thread.start()
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            with state.children_lock:
+                children = list(state.children)
+            if children:
+                break
+            time.sleep(.01)
+        assert children
+        state.close()
+        thread.join(timeout=5)
+    assert not thread.is_alive() and errors
+    assert all(child.poll() is not None for child in children)

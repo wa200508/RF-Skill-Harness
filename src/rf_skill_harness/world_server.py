@@ -39,6 +39,9 @@ class Workspace:
         self.captures = dict(captures)
         self.windows = OrderedDict()
         self.lock = threading.Lock()
+        self.children_lock = threading.Lock()
+        self.children = set()
+        self.stopping = False
 
     def files(self):
         spec = json.loads((self.root / 'skill.json').read_text())
@@ -97,13 +100,52 @@ class Workspace:
             for name in values.get('keep_plots', []):
                 arguments += ['--keep-plot', name]
         # Fresh interpreter resets algorithm helpers/native state for every test.
-        completed = subprocess.run(native_command(arguments), text=True, capture_output=True)
-        if completed.returncode:
-            raise ValueError(completed.stderr[-18000:] or completed.stdout[-18000:])
+        command_line = native_command(arguments)
+        with self.children_lock:
+            if self.stopping:
+                raise ValueError('Server is stopping')
+            process = subprocess.Popen(command_line, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       start_new_session=(os.name == 'posix'))
+            self.children.add(process)
+        try:
+            output, errors = process.communicate()
+        finally:
+            with self.children_lock:
+                self.children.discard(process)
+        if process.returncode:
+            raise ValueError(errors[-18000:] or output[-18000:] or 'Native action stopped')
         # GNU Radio's compiler also writes text logs on stdout; final JSON is
         # emitted as a dedicated document starting at the left margin.
-        offset = completed.stdout.rfind('\n{')
-        return json.loads(completed.stdout[offset+1:] if offset >= 0 else completed.stdout)
+        offset = output.rfind('\n{')
+        return json.loads(output[offset+1:] if offset >= 0 else output)
+
+
+    def close(self):
+        """Stop only this server's native jobs, including compiler descendants."""
+        with self.children_lock:
+            self.stopping = True
+            children = list(self.children)
+        for process in children:
+            if process.poll() is None:
+                try:
+                    if os.name == 'posix':
+                        os.killpg(process.pid, signal.SIGTERM)
+                    else:
+                        process.terminate()
+                except ProcessLookupError:
+                    pass
+        for process in children:
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                try:
+                    if os.name == 'posix':
+                        os.killpg(process.pid, signal.SIGKILL)
+                    else:
+                        process.kill()
+                except ProcessLookupError:
+                    pass
+                process.wait(timeout=3)
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -255,6 +297,7 @@ def main(argv=None):
     try:
         httpd.serve_forever()
     finally:
+        state.close()
         httpd.server_close()
         runtime_home.cleanup()
 
