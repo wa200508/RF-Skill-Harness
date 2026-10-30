@@ -1,0 +1,5 @@
+include README.md LICENSE
+recursive-include world *.json *.ts *.css *.md COPYING
+recursive-include scripts *.py *.sh
+recursive-include src/rf_skill_harness/world_assets *
+recursive-include docs *.md

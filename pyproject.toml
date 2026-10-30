@@ -4,24 +4,29 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rf-skill-harness"
-version = "0.1.0"
+version = "0.2.0"
 description = "GNU Radio harness for coherent recorded RF I/Q and receiver metadata"
 requires-python = ">=3.10"
-license = {text = "Apache-2.0"}
-dependencies = ["numpy>=1.24"]
+license = {text = "Apache-2.0 AND GPL-3.0-or-later"}
+dependencies = ["numpy>=1.24", "PyYAML>=6"]
 
 [project.optional-dependencies]
 lab = ["jupyterlab>=4.2,<5", "ipykernel>=6.29,<8", "matplotlib>=3.7,<4", "ipympl>=0.9.4,<0.10"]
 
 [project.scripts]
+rf-world = "rf_skill_harness.world_local:main"
 rf-harness = "rf_skill_harness.cli:main"
 rf-skill-companion = "rf_skill_harness.companion_gui:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+namespaces = false
 
 [tool.setuptools.package-data]
-rf_skill_harness = ["timeline.html", "native/*", "companion_blocks/*.yml"]
+rf_skill_harness = ["timeline.html", "native/*", "companion_blocks/*.yml", "world_assets/**/*", "world_assets/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.setuptools]
+license-files = ["LICENSE", "world/COPYING", "world/NOTICE.md"]

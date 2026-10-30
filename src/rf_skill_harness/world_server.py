@@ -84,7 +84,8 @@ class Workspace:
                 'context': archive.context(), 'windows': archive.manifest['windows']}
 
     def native(self, command, values):
-        arguments = [sys.executable, '-m', 'rf_skill_harness.world', command, str(self.root)]
+        from .native_python import native_command
+        arguments = [command, str(self.root)]
         if command == 'preview':
             capture = values['capture']
             if capture not in self.captures:
@@ -96,7 +97,7 @@ class Workspace:
             for name in values.get('keep_plots', []):
                 arguments += ['--keep-plot', name]
         # Fresh interpreter resets algorithm helpers/native state for every test.
-        completed = subprocess.run(arguments, text=True, capture_output=True)
+        completed = subprocess.run(native_command(arguments), text=True, capture_output=True)
         if completed.returncode:
             raise ValueError(completed.stderr[-18000:] or completed.stdout[-18000:])
         # GNU Radio's compiler also writes text logs on stdout; final JSON is
@@ -249,7 +250,8 @@ def main(argv=None):
     state = Workspace(args.workspace, catalog)
     httpd = ThreadingHTTPServer((args.bind, args.port), partial(Handler, state=state, directory=str(args.assets)))
     signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(0))
-    print(f'GNU Radio World ready on port {args.port}; browser DSP + native AMS-GRA export', flush=True)
+    print(f'GNU Radio World ready: http://127.0.0.1:{httpd.server_port}/', flush=True)
+    print('Ctrl+C stops the server; saved skill files remain in ' + str(args.workspace.resolve()), flush=True)
     try:
         httpd.serve_forever()
     finally:

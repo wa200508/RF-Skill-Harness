@@ -1,6 +1,6 @@
 # GNU Radio World RF skill development
 
-The workbench now extends [777arc/gnuradio-world](https://github.com/777arc/gnuradio-world)
+The main-branch workbench extends [777arc/gnuradio-world](https://github.com/777arc/gnuradio-world)
 at `96e805fb694e3e797b72ebfad30232c732e3f257`. Its TypeScript canvas, CodeMirror
 Python editor, Emscripten GNU Radio scheduler and WebAssembly Qt plotting sinks
 run in the browser. Our local HTTP server adds capture binding, persisted project
@@ -101,6 +101,10 @@ streaming TX, full duplex or cross-window coherent DSP state. Browser USB radio
 support in upstream World is a separate feature, not an RF MEL export mechanism.
 
 ## Reproducible deployment
+
+A [native Python release](install.md) bundles these assets into a pip/uv wheel
+and source archive. `rf-world serve` binds localhost without a container. The
+Docker route below remains an alternative.
 
 The source revision, runtime build stamp and SHA-256 hashes of every downloaded
 runtime/Pyodide artifact live in one lock file. The editor is built from source;

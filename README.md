@@ -5,10 +5,9 @@ using its browser flowgraph editor, Python blocks and WebAssembly DSP. Select
 replaceable I/Q collects for development, then export the edited design through
 our **native AMS-GRA RF MEL/UCI adapter**.
 
-This route lives on **`feature/gnuradio-world`**. The browser renders the editor
+This is the **main branch**. The browser renders the editor
 and plots directly. There is no desktop streaming, VNC, X11 forwarding or host
-GNU Radio/Qt installation. [Main](https://github.com/wa200508/RF-Skill-Harness/tree/main)
-keeps the independent JupyterLab workflow.
+GNU Radio/Qt installation. The [optional JupyterLab workflow](docs/jupyter-workbench.md) is also available.
 
 ![GNU Radio World processing recorded RX I/Q and a generated TX waveform](docs/images/world-plots.png)
 
@@ -21,13 +20,35 @@ keeps the independent JupyterLab workflow.
 
 </details>
 
-## Launch
+## Install locally (pip or uv)
 
-Requirements: Docker, Python 3.10+, curl, and a recent Chromium or Firefox browser.
-From this branch:
+The [v0.2.0 release](https://github.com/wa200508/RF-Skill-Harness/releases/tag/v0.2.0)
+bundles the built browser editor and WebAssembly/Pyodide runtime:
 
 ```bash
-git switch feature/gnuradio-world
+python3 -m venv .venv
+.venv/bin/python -m pip install \
+  https://github.com/wa200508/RF-Skill-Harness/releases/download/v0.2.0/rf_skill_harness-0.2.0-py3-none-any.whl
+.venv/bin/rf-world serve --workspace ./my-rf-skill --transmit
+```
+
+Open **http://127.0.0.1:8090/**. Add `--recordings /path/to/mission/iq` to select
+captures. `rf-world doctor` reports packaged assets and optional native tools.
+Pip/uv and a browser support editing, replay and plots. Native testing/export also
+needs local GNU Radio; on Ubuntu 24.04 use `sudo apt-get install gnuradio
+python3-numpy python3-yaml`. The launcher can use `/usr/bin/python3` for GNU Radio
+while the server runs in its own pip/uv environment.
+
+See [native installation](docs/install.md) for uv, a downloadable installer,
+interpreter selection, source builds and platform limits.
+
+## Launch with Docker
+
+Requirements: Docker, Python 3.10+, curl, and a recent Chromium or Firefox browser.
+From main:
+
+```bash
+git switch main
 git pull
 bash scripts/start_world.sh --workspace "$PWD/my-world-skill" --transmit
 ```
@@ -41,7 +62,7 @@ X sockets, GPU devices or privileged containers to configure.
 Without a checkout:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/wa200508/RF-Skill-Harness/feature/gnuradio-world/scripts/start_world.sh \
+curl -fsSL https://raw.githubusercontent.com/wa200508/RF-Skill-Harness/main/scripts/start_world.sh \
   -o start_world.sh
 bash start_world.sh --workspace "$PWD/my-world-skill" --transmit
 ```
@@ -154,12 +175,18 @@ adapter. Missing native blocks and validation failures are reported explicitly.
 **Export is not AMS-GRA certification**; qualify against the actual provider,
 calibration and UCI schema. See [native interface details](docs/native-export.md).
 
+The generated native skill and the current AirSim dashboard use different live
+interfaces: **RF MEL/UCI** and **`receiver-tcp-v2`**, respectively. Recorded I/Q is
+a supported test input; a direct live connection requires an adapter and an
+end-to-end test. [Compatibility details](docs/install.md#airsim-compatibility-is-a-separate-integration).
+
 ## Development and references
 
+- [Install without Docker: pip, uv or installer](docs/install.md)
 - [GNU Radio World integration, code map, validation and limitations](docs/gnuradio-world.md)
 - [Native AMS-GRA RF MEL/UCI export](docs/native-export.md)
 - [I/Q format and replay](docs/metadata.md)
-- [JupyterLab workbench on main](https://github.com/wa200508/RF-Skill-Harness/tree/main)
+- [Optional JupyterLab workbench](docs/jupyter-workbench.md)
 - Upstream [GNU Radio World](https://github.com/777arc/gnuradio-world),
   [Embedded Python support](https://github.com/777arc/gnuradio-world/blob/96e805fb694e3e797b72ebfad30232c732e3f257/docs/embedded-python.md),
   [recording sources](https://github.com/777arc/gnuradio-world/blob/96e805fb694e3e797b72ebfad30232c732e3f257/docs/recording-viewer.md)

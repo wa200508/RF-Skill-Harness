@@ -7,5 +7,5 @@ if [ -f "$rf_script_dir/start_world.sh" ]; then
 fi
 rf_launcher="$(mktemp)"
 trap 'rm -f "$rf_launcher"' EXIT
-curl -fsSL https://raw.githubusercontent.com/wa200508/RF-Skill-Harness/feature/gnuradio-world/scripts/start_world.sh -o "$rf_launcher"
+curl -fsSL https://raw.githubusercontent.com/wa200508/RF-Skill-Harness/main/scripts/start_world.sh -o "$rf_launcher"
 bash "$rf_launcher" "$@"

@@ -9,3 +9,4 @@ runs/
 workspace/
 *.sigmf-data
 .ipynb_checkpoints/
+src/rf_skill_harness/world_assets/
